@@ -30,61 +30,37 @@ Use year 2026 if no year is given. Infer timezone from city/airport."""
 
 SYSTEM_DIALOG = """You are a smart travel assistant helping fill in a trip itinerary entry.
 
-Your goal: gather enough to create an accurate entry in as few exchanges as possible.
+You receive trip start/end dates as context. Use them for date inference and return flights.
 
-REASON BEFORE ASKING. Before asking any question:
-- Use your knowledge of airlines, routes, and typical schedules to fill in gaps.
-- If a route has only one or two operators, name them and ask for confirmation instead of asking open-ended questions.
-  Example: "Zurich to Hurghada is mainly Edelweiss (WK) — is that right?"
-- If a route typically has a single daily departure, propose it with the time.
-  Example: "Edelweiss WK591 departs around 10:15 — does that sound right?"
-- If multiple options exist, list them briefly so the user can pick.
-  Example: "There are two Edelweiss flights that day: WK591 at 10:15 or WK593 at 14:30 — which one?"
-- Never ask for arrival time on flights — always compute and fill arrives_at using your knowledge of typical route durations. Examples: ZRH→LHR ~2h, ZRH→HRG ~4h, ZRH→JFK ~9h, ZRH→BKK ~11h, ZRH→DXB ~6h. Add duration to departs_at (in local departure time), then express in the arrival city's timezone.
-- Never ask for timezone — infer it from city or airport.
-- Never ask for the year if the context already implies it.
-- Bundle tightly related fields: ask date + time together if both are missing, not separately.
+REASON BEFORE ASKING:
+- Use route knowledge to infer carrier, times, flight numbers.
+- Propose specific options rather than asking open questions.
+- Bundle date+time if both missing. Never ask for timezone or year.
+- Never ask for arrival time — compute from typical route duration.
+- ZRH-HRG ~4h, ZRH-LHR ~2h, ZRH-JFK ~9h, ZRH-DXB ~6h.
 
-Only ask a question when something is genuinely ambiguous and you cannot make a confident inference.
+RETURN FLIGHT: When status=ready for a flight, always populate return_draft:
+- Reverse the route, use trip end_date as departure.
+- Propose the likely return flight (e.g. outbound WK591 ZRH-HRG -> return WK592 HRG-ZRH).
+- Compute arrival using same duration logic.
+- Set return_draft=null only for one-way or non-flight segments.
 
-When you ask:
-- ONE question per turn (or one tightly bundled pair).
-- Phrase as a proposal to confirm when possible, not an open question.
-- Be brief and direct. No preamble.
+Set status=ready as soon as entry is complete. Do not ask for optional details.
 
-Set status to "ready" as soon as you have enough for a complete, saveable entry.
-Do not keep asking for optional or low-priority details.
+Fields needed:
+- flight: origin, destination, departs_at, carrier, flight_iata
+- hotel: origin, carrier (name), departs_at, meta.nights
+- train/car/activity: origin, departs_at
 
-Important fields by type:
-- flight: origin, destination, departs_at (date+time), carrier + flight_iata
-- hotel: origin (location), carrier (hotel name), departs_at (check-in date), meta.nights
-- train: origin, destination, departs_at
-- car: origin (pick-up location), departs_at
-- activity: origin (location), carrier (activity/operator name), departs_at
-
-Always return valid JSON only — no text outside the JSON.
-
+Return ONLY JSON:
 {
   "status": "question" or "ready",
-  "question": "Your question or proposal (only when status=question)",
-  "draft": {
-    "type": "flight|hotel|train|car|activity|other",
-    "origin": "string or null",
-    "destination": "string or null",
-    "carrier": "string or null",
-    "flight_iata": "IATA code e.g. WK591 or null",
-    "departs_at": "YYYY-MM-DDTHH:MM:00 or null",
-    "departs_tz": "IANA timezone or null",
-    "arrives_at": "YYYY-MM-DDTHH:MM:00 or null",
-    "arrives_tz": "IANA timezone or null",
-    "confirmation_ref": "string or null",
-    "confirmed": false,
-    "meta": {"notes": "", "nights": null}
-  },
-  "missing": ["fields still genuinely uncertain"]
+  "question": "...",
+  "draft": {"type":"...","origin":null,"destination":null,"carrier":null,"flight_iata":null,"departs_at":null,"departs_tz":null,"arrives_at":null,"arrives_tz":null,"confirmation_ref":null,"confirmed":false,"meta":{"notes":"","nights":null}},
+  "return_draft": {"type":"flight","origin":null,"destination":null,"carrier":null,"flight_iata":null,"departs_at":null,"departs_tz":null,"arrives_at":null,"arrives_tz":null,"confirmed":false,"meta":{"notes":""}},
+  "missing": []
 }
-
-Use year 2026 if no year given. Always infer IANA timezone from city or airport."""
+Use 2026 if no year. Infer IANA timezone from city/airport."""
 
 # ── AviationStack ────────────────────────────────────────────────────────────
 
@@ -266,20 +242,14 @@ def parse_dialog(body: DialogRequest, db: Session = Depends(get_db)):
 
     status = gpt.get("status", "question")
     draft = gpt.get("draft", body.draft or {})
-    av_note = None
-
-    # Try AviationStack enrichment as soon as we hit ready on a flight
-    if status == "ready" and draft.get("type") == "flight" and draft.get("flight_iata"):
-        draft, _, av_note = enrich_with_aviationstack(draft)
-
-    return DialogResponse(
-        status=status,
-        question=gpt.get("question"),
-        draft=draft,
-        missing=gpt.get("missing", []),
-        aviationstack_note=av_note,
-        history=new_history,
-    )
+    av_note=None
+    return_draft=gpt.get('return_draft')
+    return_av_note=None
+    if status=='ready' and draft.get('type')=='flight' and draft.get('flight_iata'):
+        draft,_,av_note=enrich_with_aviationstack(draft)
+    if status=='ready' and return_draft and return_draft.get('flight_iata'):
+        return_draft,_,return_av_note=enrich_with_aviationstack(return_draft)
+    return DialogResponse(status=status,question=gpt.get('question'),draft=draft,return_draft=return_draft,missing=gpt.get('missing',[]),aviationstack_note=av_note,return_aviationstack_note=return_av_note,history=new_history)
 
 
 @router.post("/dialog/confirm", response_model=SegmentOut, status_code=201)
