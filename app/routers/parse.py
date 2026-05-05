@@ -40,7 +40,7 @@ REASON BEFORE ASKING. Before asking any question:
   Example: "Edelweiss WK591 departs around 10:15 — does that sound right?"
 - If multiple options exist, list them briefly so the user can pick.
   Example: "There are two Edelweiss flights that day: WK591 at 10:15 or WK593 at 14:30 — which one?"
-- Never ask for arrival time on flights — infer it from typical route duration.
+- Never ask for arrival time on flights — always compute and fill arrives_at using your knowledge of typical route durations. Examples: ZRH→LHR ~2h, ZRH→HRG ~4h, ZRH→JFK ~9h, ZRH→BKK ~11h, ZRH→DXB ~6h. Add duration to departs_at (in local departure time), then express in the arrival city's timezone.
 - Never ask for timezone — infer it from city or airport.
 - Never ask for the year if the context already implies it.
 - Bundle tightly related fields: ask date + time together if both are missing, not separately.
@@ -185,11 +185,13 @@ class DialogRequest(BaseModel):
     draft: Optional[dict[str, Any]] = None
 
 class DialogResponse(BaseModel):
-    status: str      # "question" | "ready"
+    status: str
     question: Optional[str] = None
     draft: Optional[dict[str, Any]] = None
+    return_draft: Optional[dict[str, Any]] = None
     missing: list[str] = []
     aviationstack_note: Optional[str] = None
+    return_aviationstack_note: Optional[str] = None
     history: list[DialogMessage] = []
 
 class DialogConfirmRequest(BaseModel):
@@ -238,6 +240,8 @@ def parse_dialog(body: DialogRequest, db: Session = Depends(get_db)):
     if not db.query(Trip).filter(Trip.id == body.trip_id).first():
         raise HTTPException(404, "Trip not found")
 
+    trip = db.query(Trip).filter(Trip.id == body.trip_id).first()
+    trip_ctx = f"[Trip: {trip.name}, start: {trip.start_date}, end: {trip.end_date}]"
     messages = [{"role": "system", "content": SYSTEM_DIALOG}]
     for m in body.history:
         messages.append({"role": m.role, "content": m.content})
@@ -245,6 +249,7 @@ def parse_dialog(body: DialogRequest, db: Session = Depends(get_db)):
     user_content = body.message
     if body.draft:
         user_content += f"\n\n[Draft so far: {json.dumps(body.draft)}]"
+    user_content += f"\n\n{trip_ctx}"
     messages.append({"role": "user", "content": user_content})
 
     r = client.chat.completions.create(
