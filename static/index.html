@@ -34,6 +34,8 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .btn-ghost:hover{background:var(--paper2);color:var(--ink)}
 .btn-primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .btn-primary:hover{background:var(--ink2)}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-accent:hover{background:var(--accent2)}
 .btn-danger{background:transparent;color:var(--red);border-color:transparent;padding:4px 8px;font-size:12px}
 .btn-danger:hover{background:#fdecea}
 .btn-sm{padding:5px 10px;font-size:12px}
@@ -41,7 +43,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 /* ── LAYOUT ── */
 .main{max-width:760px;margin:0 auto;padding:2rem 1.5rem}
 
-/* ── TRIP HEADER ── */
+/* ── TRIP BAR ── */
 .trip-bar{display:flex;align-items:baseline;gap:10px;margin-bottom:1.5rem;position:relative}
 .trip-name{font-family:var(--serif);font-size:28px;letter-spacing:-.02em;cursor:pointer;transition:color .15s}
 .trip-name:hover{color:var(--accent)}
@@ -74,6 +76,41 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   margin-bottom:1.25rem;font-size:13px}
 .banner-warn{background:#fef3e8;border:1px solid #f5d5b0;color:var(--accent)}
 .banner-ok{background:#e8f5ef;border:1px solid #b0d5be;color:var(--green)}
+
+/* ── NL BAR ── */
+.nl-bar{background:var(--paper2);border:1px solid var(--paper3);border-radius:var(--r);
+  margin-bottom:1.25rem;overflow:hidden;transition:border-color .2s}
+.nl-bar:focus-within{border-color:var(--ink4)}
+.nl-bar.dialog-active{border-color:var(--accent);border-width:1.5px}
+
+.nl-input-row{display:flex;align-items:center;gap:8px;padding:8px 12px}
+.nl-icon{color:var(--accent);font-size:16px;flex-shrink:0}
+.nl-input{flex:1;border:none;background:transparent;font-family:var(--sans);font-size:14px;
+  color:var(--ink);outline:none}
+.nl-input::placeholder{color:var(--ink4)}
+.nl-input:disabled{opacity:.5}
+
+/* ── DIALOG THREAD ── */
+.dialog-thread{padding:0 12px 10px;display:flex;flex-direction:column;gap:8px}
+.dialog-msg{font-size:13px;line-height:1.55;padding:8px 11px;border-radius:8px;max-width:92%}
+.dialog-msg.bot{background:var(--paper3);color:var(--ink2);align-self:flex-start;border-radius:4px 8px 8px 8px}
+.dialog-msg.user{background:var(--ink);color:var(--paper);align-self:flex-end;border-radius:8px 4px 8px 8px}
+.dialog-msg.thinking{background:var(--paper3);color:var(--ink3);font-style:italic;align-self:flex-start}
+
+/* ── SUMMARY CARD ── */
+.summary-card{margin:0 12px 12px;border:1px solid var(--paper3);border-radius:8px;overflow:hidden}
+.summary-header{background:var(--ink);color:var(--paper);padding:8px 12px;
+  font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;
+  display:flex;align-items:center;gap:8px}
+.summary-body{padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:6px 16px}
+.sum-field{min-width:0}
+.sum-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);font-weight:500}
+.sum-val{font-size:13px;color:var(--ink);margin-top:1px;word-break:break-word}
+.sum-val.null{color:var(--ink4);font-style:italic}
+.av-note{margin:0 12px 10px;padding:8px 11px;background:#fef3e8;border:1px solid #f5d5b0;
+  border-radius:6px;font-size:12px;color:var(--accent);line-height:1.5;display:flex;gap:8px}
+.av-note-icon{flex-shrink:0;margin-top:1px}
+.summary-footer{display:flex;gap:8px;padding:8px 12px;border-top:1px solid var(--paper3)}
 
 /* ── TIMELINE ── */
 .day-label{display:flex;align-items:center;gap:10px;padding:8px 0;
@@ -113,12 +150,11 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .badge-review{background:#fdecea;color:var(--red)}
 
 .seg-detail{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--paper3);
-  display:none;grid-template-columns:repeat(3,1fr);gap:8px}
+  grid-template-columns:repeat(3,1fr);gap:8px}
 .seg-detail.open{display:grid}
 .det-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);font-weight:500}
 .det-val{font-size:13px;color:var(--ink);margin-top:1px}
 .det-val.warn{color:var(--red)}
-
 .seg-actions{display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid var(--paper3)}
 
 /* ── NIGHT BRIDGE ── */
@@ -128,10 +164,11 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   to bottom,var(--accent) 0,var(--accent) 4px,transparent 4px,transparent 8px);opacity:.35}
 .bridge-lbl{display:flex;align-items:center;font-size:11px;color:var(--ink3);letter-spacing:.03em}
 
-/* ── EMPTY ── */
+/* ── EMPTY / LOADING ── */
 .empty{text-align:center;padding:3rem 1rem}
 .empty-title{font-family:var(--serif);font-size:22px;font-style:italic;color:var(--ink2);margin-bottom:6px}
 .empty-sub{font-size:13px;color:var(--ink3);line-height:1.7}
+.loading{text-align:center;padding:3rem;color:var(--ink3);font-size:13px;font-style:italic}
 
 /* ── MODAL ── */
 .overlay{display:none;position:fixed;inset:0;background:rgba(26,24,20,.55);
@@ -141,7 +178,6 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   border:1px solid var(--paper3);max-height:90vh;overflow-y:auto;
   animation:slideUp .2s ease both}
 @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-
 .modal-title{font-family:var(--serif);font-size:21px;letter-spacing:-.02em;margin-bottom:18px}
 .form-row{margin-bottom:13px}
 .form-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);
@@ -151,9 +187,6 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   outline:none;transition:border-color .15s}
 .form-input:focus{border-color:var(--ink4);background:#fff}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
-
-/* ── TYPE PICKER ── */
 .type-picker{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
 .type-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;
   border:1px solid var(--paper3);border-radius:8px;cursor:pointer;background:var(--paper);
@@ -163,11 +196,8 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .type-btn-icon{font-size:17px;line-height:1}
 .type-btn-lbl{font-size:9px;font-weight:500;letter-spacing:.04em;color:var(--ink3);text-transform:uppercase}
 .type-btn.sel .type-btn-lbl{color:var(--ink4)}
-
 .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;
   padding-top:14px;border-top:1px solid var(--paper3)}
-
-/* ── NEW TRIP MODAL ── */
 .trip-modal{max-width:380px}
 
 /* ── TOAST ── */
@@ -175,14 +205,6 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   padding:10px 16px;border-radius:8px;font-size:13px;z-index:999;
   animation:fadeIn .2s ease;pointer-events:none}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-
-/* ── LOADING ── */
-.nl-bar{display:flex;align-items:center;gap:8px;background:var(--paper2);border:1px solid var(--paper3);border-radius:var(--r);padding:8px 12px;margin-bottom:1.25rem}
-.nl-icon{color:var(--accent);font-size:16px;flex-shrink:0}
-.nl-input{flex:1;border:none;background:transparent;font-family:var(--sans);font-size:14px;color:var(--ink);outline:none}
-.nl-input::placeholder{color:var(--ink4)}
-.nl-loading{opacity:.5;pointer-events:none}
-.loading{text-align:center;padding:3rem;color:var(--ink3);font-size:13px;font-style:italic}
 </style>
 </head>
 <body>
@@ -207,18 +229,28 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
     <span class="trip-meta" id="tripMeta"></span>
   </div>
 
-  <!-- NL INPUT -->
+  <!-- NL / DIALOG BAR -->
   <div class="nl-bar" id="nlBar">
-    <span class="nl-icon">✦</span>
-    <input class="nl-input" id="nlInput" onkeydown="if(event.key==='Enter')nlSubmit()" placeholder="e.g. flight ZRH to HRG Oct 10 07:15 Swiss LX392…" onkeydown="if(event.key==='Enter')nlSubmit()">
-    <button class="btn btn-primary btn-sm" id="nlBtn" onclick="nlSubmit()">Add</button>
+    <div class="nl-input-row">
+      <span class="nl-icon">✦</span>
+      <input class="nl-input" id="nlInput"
+        placeholder="e.g. flight ZRH to HRG Oct 10 07:15 Swiss LX392…"
+        onkeydown="handleNlKey(event)">
+      <button class="btn btn-primary btn-sm" id="nlBtn" onclick="nlSubmit()">Add</button>
+      <button class="btn btn-ghost btn-sm" id="nlCancelBtn" onclick="cancelDialog()" style="display:none">✕</button>
+    </div>
+    <!-- dialog thread injected here -->
+    <div class="dialog-thread" id="dialogThread" style="display:none"></div>
+    <!-- summary card injected here -->
+    <div id="summaryArea"></div>
   </div>
 
   <!-- BANNER -->
   <div class="banner banner-warn" id="reviewBanner" style="display:none">
     <span>⚠</span>
     <span id="reviewText"></span>
-    <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="document.getElementById('reviewBanner').style.display='none'">Dismiss</button>
+    <button class="btn btn-ghost btn-sm" style="margin-left:auto"
+      onclick="document.getElementById('reviewBanner').style.display='none'">Dismiss</button>
   </div>
 
   <!-- STATUS BAR -->
@@ -238,7 +270,6 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 <div class="overlay" id="segOverlay">
 <div class="modal">
   <div class="modal-title" id="segModalTitle">Add segment</div>
-
   <div class="form-row">
     <label class="form-label">Type</label>
     <div class="type-picker">
@@ -250,7 +281,6 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
       <button class="type-btn" onclick="pickType(this,'other')"><span class="type-btn-icon">📌</span><span class="type-btn-lbl">Other</span></button>
     </div>
   </div>
-
   <div class="form-grid">
     <div class="form-row">
       <label class="form-label" id="lblFrom">From</label>
@@ -261,12 +291,10 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
       <input class="form-input" id="fTo" placeholder="HRG or Hurghada">
     </div>
   </div>
-
   <div class="form-row">
     <label class="form-label" id="lblCarrier">Carrier / Name</label>
     <input class="form-input" id="fCarrier" placeholder="Swiss LX 392">
   </div>
-
   <div class="form-grid">
     <div class="form-row">
       <label class="form-label">Departure date</label>
@@ -277,7 +305,6 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
       <input class="form-input" id="fDepTime" placeholder="07:15" maxlength="5">
     </div>
   </div>
-
   <div class="form-grid" id="arrRow">
     <div class="form-row">
       <label class="form-label">Arrival date</label>
@@ -288,7 +315,6 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
       <input class="form-input" id="fArrTime" placeholder="12:35" maxlength="5">
     </div>
   </div>
-
   <div class="form-grid">
     <div class="form-row">
       <label class="form-label">Timezone (dep)</label>
@@ -299,17 +325,14 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
       <input class="form-input" id="fRef" placeholder="LX3K9M">
     </div>
   </div>
-
   <div class="form-row">
     <label class="form-label">Notes (optional)</label>
     <input class="form-input" id="fNotes" placeholder="Seat 12A, terminal 2…">
   </div>
-
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
     <input type="checkbox" id="fConfirmed" style="accent-color:var(--green)">
     <label for="fConfirmed" style="font-size:13px;color:var(--ink2);cursor:pointer">Mark as confirmed</label>
   </div>
-
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeSegModal()">Cancel</button>
     <button class="btn btn-primary" id="segSaveBtn" onclick="saveSeg()">Save segment</button>
@@ -343,13 +366,21 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 </div>
 
 <script>
-// ── CONFIG ──────────────────────────────────────────────────
-const API = '';  // same origin
+// ── CONFIG ───────────────────────────────────────────────────
+const API   = '';
 const TOKEN = 'd5f9e9b215da795ef927a399c3eba355';
-const H = { 'Content-Type':'application/json', 'X-Token': TOKEN };
+const H     = {'Content-Type':'application/json','X-Token':TOKEN};
 
 // ── STATE ────────────────────────────────────────────────────
 let trips = [], currentTrip = null, editingSegId = null;
+
+// ── DIALOG STATE ─────────────────────────────────────────────
+let dlg = {
+  active:   false,
+  history:  [],
+  draft:    null,
+  avNote:   null,
+};
 
 // ── BOOT ─────────────────────────────────────────────────────
 async function boot() {
@@ -387,7 +418,6 @@ document.addEventListener('click', e => {
 async function selectTrip(trip) {
   currentTrip = trip;
   document.getElementById('tripName').textContent = trip.name;
-  // fetch full trip with segments
   const r = await fetch(`${API}/api/trips/${trip.id}`, {headers:H});
   currentTrip = await r.json();
   renderMeta();
@@ -403,39 +433,40 @@ function renderMeta() {
   document.getElementById('sRet').textContent = fmtShort(t.end_date) || '—';
   const segs = t.segments || [];
   document.getElementById('sSeg').textContent = segs.length;
-  // days until start
   if (t.start_date) {
     const diff = Math.ceil((new Date(t.start_date) - new Date()) / 86400000);
-    document.getElementById('sNext').textContent = diff > 0 ? `${diff}d` : diff === 0 ? 'Today' : 'Past';
+    document.getElementById('sNext').textContent =
+      diff > 0 ? `${diff}d` : diff === 0 ? 'Today' : 'Past';
   }
-  // review banner
   const review = segs.filter(s => s.parse_status === 'needs_review' || s.parse_status === 'failed');
   const rb = document.getElementById('reviewBanner');
   if (review.length) {
     rb.style.display = 'flex';
     document.getElementById('reviewText').textContent =
       `${review.length} segment${review.length>1?'s':''} need${review.length>1?'':'s'} review.`;
-  } else { rb.style.display = 'none'; }
+  } else {
+    rb.style.display = 'none';
+  }
 }
 
 // ── TIMELINE ─────────────────────────────────────────────────
 const TYPE_ICON = {flight:'✈',hotel:'🏨',train:'🚂',car:'🚗',activity:'🎯',other:'📌'};
-const BADGE = {ok:'badge-ok',needs_review:'badge-review',failed:'badge-review',pending:'badge-pending'};
+const BADGE     = {ok:'badge-ok',needs_review:'badge-review',failed:'badge-review',pending:'badge-pending'};
 const BADGE_LBL = {ok:'Confirmed',needs_review:'Needs review',failed:'Failed',pending:'Pending'};
 
 function renderTimeline() {
-  const tl = document.getElementById('timeline');
-  const segs = (currentTrip.segments || []).slice().sort((a,b) => (a.departs_at||'').localeCompare(b.departs_at||''));
+  const tl   = document.getElementById('timeline');
+  const segs = (currentTrip.segments || []).slice()
+    .sort((a,b) => (a.departs_at||'').localeCompare(b.departs_at||''));
   if (!segs.length) {
     tl.innerHTML = `<div class="empty">
       <div class="empty-title">No segments yet</div>
-      <div class="empty-sub">Add your first flight, hotel, or activity<br>using the button above.</div>
+      <div class="empty-sub">Type in the bar above, or use + Add segment.</div>
     </div>`; return;
   }
-  // group by day
   const days = {};
   segs.forEach(s => {
-    const day = (s.departs_at || '').slice(0,10) || 'unknown';
+    const day = (s.departs_at||'').slice(0,10) || 'unknown';
     if (!days[day]) days[day] = [];
     days[day].push(s);
   });
@@ -443,13 +474,12 @@ function renderTimeline() {
   Object.entries(days).forEach(([day, daySegs]) => {
     html += `<div class="day-label"><span class="day-date">${fmtDay(day)}</span><div class="day-line"></div></div>`;
     daySegs.forEach(s => {
-      const time = (s.departs_at||'').slice(11,16) || '—';
+      const time   = (s.departs_at||'').slice(11,16) || '—';
       const isHotel = s.type === 'hotel';
-      const dest = s.destination ? `<span class="arr">→</span>${s.destination}` : '';
-      const sub = [s.carrier, s.arrives_at ? `Arr ${s.arrives_at.slice(11,16)}` : null]
-        .filter(Boolean).join(' · ');
+      const dest   = s.destination ? `<span class="arr">→</span>${s.destination}` : '';
+      const sub    = [s.carrier, s.arrives_at ? `Arr ${s.arrives_at.slice(11,16)}` : null].filter(Boolean).join(' · ');
       const bClass = s.confirmed ? 'badge-ok' : BADGE[s.parse_status] || 'badge-pending';
-      const bLbl = s.confirmed ? 'Confirmed' : BADGE_LBL[s.parse_status] || 'Pending';
+      const bLbl   = s.confirmed ? 'Confirmed' : BADGE_LBL[s.parse_status] || 'Pending';
       const nights = isHotel && s.meta && s.meta.nights ? ` · ${s.meta.nights} nights` : '';
       html += `<div class="seg" data-id="${s.id}">
         <div class="seg-tc"><span class="seg-time">${time}</span><div class="seg-line"></div></div>
@@ -468,6 +498,7 @@ function renderTimeline() {
           <div class="seg-detail">
             ${s.departs_tz ? `<div><div class="det-lbl">Timezone</div><div class="det-val">${s.departs_tz}</div></div>` : ''}
             ${s.meta && s.meta.notes ? `<div><div class="det-lbl">Notes</div><div class="det-val">${s.meta.notes}</div></div>` : ''}
+            ${s.meta && s.meta.aviationstack_note ? `<div style="grid-column:1/-1"><div class="det-lbl">Flight data</div><div class="det-val warn" style="font-size:12px">${s.meta.aviationstack_note}</div></div>` : ''}
             ${s.parse_status==='needs_review'||s.parse_status==='failed' ? `<div><div class="det-lbl">Status</div><div class="det-val warn">Needs manual review</div></div>` : ''}
             <div style="grid-column:1/-1" class="seg-actions">
               <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditSeg('${s.id}')">Edit</button>
@@ -476,7 +507,6 @@ function renderTimeline() {
           </div>
         </div>
       </div>`;
-      // hotel bridge
       if (isHotel && s.meta && s.meta.nights && s.meta.nights > 1) {
         html += `<div class="bridge">
           <div class="bridge-line"><div class="bridge-bar"></div></div>
@@ -501,14 +531,205 @@ function renderEmpty() {
   </div>`;
 }
 
+// ── DIALOG: NL BAR ───────────────────────────────────────────
+
+function handleNlKey(e) {
+  if (e.key === 'Enter') nlSubmit();
+  if (e.key === 'Escape') cancelDialog();
+}
+
+async function nlSubmit() {
+  const input = document.getElementById('nlInput');
+  const text  = input.value.trim();
+  if (!text || !currentTrip) { toast('Create a trip first'); return; }
+
+  setNlLoading(true);
+
+  try {
+    const body = {
+      trip_id: currentTrip.id,
+      message: text,
+      history: dlg.history,
+      draft:   dlg.draft,
+    };
+    const r   = await fetch(`${API}/api/parse/dialog`, {method:'POST', headers:H, body:JSON.stringify(body)});
+    if (!r.ok) throw new Error(await r.text());
+    const res = await r.json();
+
+    // Update dialog state
+    dlg.active  = true;
+    dlg.history = res.history;
+    dlg.draft   = res.draft;
+    dlg.avNote  = res.aviationstack_note || null;
+
+    // Add user message to thread
+    appendThread('user', text);
+    input.value = '';
+
+    if (res.status === 'question') {
+      // GPT needs more info
+      activateDialog();
+      appendThread('bot', res.question);
+    } else {
+      // Ready — show summary card for confirmation
+      activateDialog();
+      appendThread('bot', 'Got everything I need. Does this look right?');
+      renderSummary(res.draft, res.aviationstack_note);
+    }
+  } catch(e) {
+    appendThread('bot', 'Something went wrong — please try again.');
+    console.error(e);
+  } finally {
+    setNlLoading(false);
+  }
+}
+
+function activateDialog() {
+  document.getElementById('nlBar').classList.add('dialog-active');
+  document.getElementById('dialogThread').style.display = 'flex';
+  document.getElementById('nlCancelBtn').style.display  = '';
+  document.getElementById('nlBtn').textContent = 'Send';
+  document.getElementById('nlInput').placeholder = 'Reply…';
+}
+
+function cancelDialog() {
+  dlg = {active:false, history:[], draft:null, avNote:null};
+  document.getElementById('nlBar').classList.remove('dialog-active');
+  document.getElementById('dialogThread').style.display = 'none';
+  document.getElementById('dialogThread').innerHTML = '';
+  document.getElementById('summaryArea').innerHTML  = '';
+  document.getElementById('nlCancelBtn').style.display = 'none';
+  document.getElementById('nlBtn').textContent = 'Add';
+  document.getElementById('nlInput').placeholder = 'e.g. flight ZRH to HRG Oct 10 07:15 Swiss LX392…';
+  document.getElementById('nlInput').value = '';
+  document.getElementById('nlInput').focus();
+}
+
+function appendThread(role, text) {
+  const thread = document.getElementById('dialogThread');
+  const el = document.createElement('div');
+  el.className = `dialog-msg ${role}`;
+  el.textContent = text;
+  thread.appendChild(el);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function setNlLoading(on) {
+  const btn   = document.getElementById('nlBtn');
+  const input = document.getElementById('nlInput');
+  if (on) {
+    btn.disabled = true;
+    btn.textContent = '…';
+    // show thinking bubble
+    const el = document.createElement('div');
+    el.className = 'dialog-msg thinking';
+    el.id = 'thinkingBubble';
+    el.textContent = 'Thinking…';
+    const thread = document.getElementById('dialogThread');
+    thread.style.display = 'flex';
+    thread.appendChild(el);
+    thread.scrollTop = thread.scrollHeight;
+  } else {
+    btn.disabled = false;
+    btn.textContent = dlg.active ? 'Send' : 'Add';
+    const t = document.getElementById('thinkingBubble');
+    if (t) t.remove();
+  }
+  input.disabled = on;
+}
+
+// ── SUMMARY CARD ─────────────────────────────────────────────
+
+const TYPE_ICON_MAP = {flight:'✈',hotel:'🏨',train:'🚂',car:'🚗',activity:'🎯',other:'📌'};
+
+function renderSummary(draft, avNote) {
+  const area = document.getElementById('summaryArea');
+  const icon = TYPE_ICON_MAP[draft.type] || '📌';
+
+  const fields = [
+    ['Type',        draft.type],
+    ['From',        draft.origin],
+    ['To',          draft.destination],
+    ['Carrier',     draft.carrier],
+    ['Flight',      draft.flight_iata],
+    ['Departs',     fmtDraftTime(draft.departs_at, draft.departs_tz)],
+    ['Arrives',     fmtDraftTime(draft.arrives_at, draft.arrives_tz)],
+    ['Ref',         draft.confirmation_ref],
+    ['Notes',       draft.meta && draft.meta.notes ? draft.meta.notes : null],
+    ['Check-in nights', draft.meta && draft.meta.nights ? draft.meta.nights : null],
+  ].filter(([, v]) => v);
+
+  const fieldsHtml = fields.map(([lbl, val]) =>
+    `<div class="sum-field">
+      <div class="sum-lbl">${lbl}</div>
+      <div class="sum-val">${val}</div>
+    </div>`
+  ).join('');
+
+  const avHtml = avNote ? `
+    <div class="av-note">
+      <span class="av-note-icon">ℹ</span>
+      <span>${avNote}</span>
+    </div>` : '';
+
+  area.innerHTML = `
+    <div class="summary-card">
+      <div class="summary-header">${icon} ${(draft.type||'').toUpperCase()} SUMMARY</div>
+      <div class="summary-body">${fieldsHtml}</div>
+    </div>
+    ${avHtml}
+    <div class="summary-footer">
+      <button class="btn btn-ghost btn-sm" onclick="cancelDialog()">Cancel</button>
+      <button class="btn btn-ghost btn-sm" onclick="editSummary()">Edit</button>
+      <button class="btn btn-accent btn-sm" onclick="confirmSave()">Save segment ✓</button>
+    </div>`;
+}
+
+function editSummary() {
+  // Clear summary, let user keep chatting
+  document.getElementById('summaryArea').innerHTML = '';
+  appendThread('bot', 'What would you like to change?');
+  document.getElementById('nlInput').focus();
+}
+
+async function confirmSave() {
+  const saveBtn = document.querySelector('.summary-footer .btn-accent');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+
+  try {
+    const draft = {...dlg.draft};
+    if (dlg.avNote) draft.aviationstack_note = dlg.avNote;
+
+    const r = await fetch(`${API}/api/parse/dialog/confirm`, {
+      method: 'POST', headers: H,
+      body: JSON.stringify({trip_id: currentTrip.id, draft}),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    cancelDialog();
+    await selectTrip(currentTrip);
+    toast('Segment saved ✓');
+  } catch(e) {
+    toast('Error saving — check console');
+    console.error(e);
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save segment ✓'; }
+  }
+}
+
+function fmtDraftTime(dt, tz) {
+  if (!dt) return null;
+  const date = dt.slice(0,10);
+  const time = dt.slice(11,16);
+  return tz ? `${date} ${time} (${tz})` : `${date} ${time}`;
+}
+
 // ── SEGMENT MODAL ─────────────────────────────────────────────
 const TYPE_PLACEHOLDERS = {
-  flight:{from:'ZRH or Zurich',to:'HRG or Hurghada',carrier:'Swiss LX 392',fromLbl:'From',toLbl:'To',carrierLbl:'Flight'},
-  hotel:{from:'City or address',to:'',carrier:'Hotel name',fromLbl:'Location',toLbl:'Check-out date',carrierLbl:'Property'},
-  train:{from:'Bern Hbf',to:'Zürich HB',carrier:'SBB IC 1',fromLbl:'From',toLbl:'To',carrierLbl:'Train'},
-  car:{from:'Pick-up',to:'Drop-off',carrier:'Hertz / Avis…',fromLbl:'Pick-up',toLbl:'Drop-off',carrierLbl:'Provider'},
-  activity:{from:'Location',to:'',carrier:'Operator',fromLbl:'Location',toLbl:'',carrierLbl:'Activity name'},
-  other:{from:'',to:'',carrier:'',fromLbl:'From',toLbl:'To',carrierLbl:'Name'},
+  flight:   {from:'ZRH or Zurich',to:'HRG or Hurghada',carrier:'Swiss LX 392',fromLbl:'From',toLbl:'To',carrierLbl:'Flight'},
+  hotel:    {from:'City or address',to:'',carrier:'Hotel name',fromLbl:'Location',toLbl:'Check-out date',carrierLbl:'Property'},
+  train:    {from:'Bern Hbf',to:'Zürich HB',carrier:'SBB IC 1',fromLbl:'From',toLbl:'To',carrierLbl:'Train'},
+  car:      {from:'Pick-up',to:'Drop-off',carrier:'Hertz / Avis…',fromLbl:'Pick-up',toLbl:'Drop-off',carrierLbl:'Provider'},
+  activity: {from:'Location',to:'',carrier:'Operator',fromLbl:'Location',toLbl:'',carrierLbl:'Activity name'},
+  other:    {from:'',to:'',carrier:'',fromLbl:'From',toLbl:'To',carrierLbl:'Name'},
 };
 let currentType = 'flight';
 
@@ -517,23 +738,23 @@ function pickType(btn, type) {
   btn.classList.add('sel');
   currentType = type;
   const p = TYPE_PLACEHOLDERS[type] || TYPE_PLACEHOLDERS.other;
-  document.getElementById('fFrom').placeholder = p.from;
-  document.getElementById('fTo').placeholder = p.to;
-  document.getElementById('fCarrier').placeholder = p.carrier;
-  document.getElementById('lblFrom').textContent = p.fromLbl;
-  document.getElementById('lblTo').textContent = p.toLbl;
-  document.getElementById('lblCarrier').textContent = p.carrierLbl;
-  document.getElementById('arrRow').style.display = ['flight','train'].includes(type) ? 'grid' : 'none';
+  document.getElementById('fFrom').placeholder     = p.from;
+  document.getElementById('fTo').placeholder       = p.to;
+  document.getElementById('fCarrier').placeholder  = p.carrier;
+  document.getElementById('lblFrom').textContent   = p.fromLbl;
+  document.getElementById('lblTo').textContent     = p.toLbl;
+  document.getElementById('lblCarrier').textContent= p.carrierLbl;
+  document.getElementById('arrRow').style.display  = ['flight','train'].includes(type) ? 'grid' : 'none';
 }
 
 function openAddSeg() {
   if (!currentTrip) { toast('Create a trip first'); return; }
   editingSegId = null;
   document.getElementById('segModalTitle').textContent = 'Add segment';
-  document.getElementById('segSaveBtn').textContent = 'Save segment';
+  document.getElementById('segSaveBtn').textContent    = 'Save segment';
   clearSegForm();
   document.getElementById('fDepDate').value = currentTrip.start_date || '';
-  document.getElementById('fDepTz').value = 'Europe/Zurich';
+  document.getElementById('fDepTz').value   = 'Europe/Zurich';
   document.getElementById('segOverlay').classList.add('open');
   document.getElementById('fFrom').focus();
 }
@@ -543,22 +764,21 @@ function openEditSeg(id) {
   if (!seg) return;
   editingSegId = id;
   document.getElementById('segModalTitle').textContent = 'Edit segment';
-  document.getElementById('segSaveBtn').textContent = 'Update segment';
+  document.getElementById('segSaveBtn').textContent    = 'Update segment';
   clearSegForm();
-  // set type
   const typeBtn = [...document.querySelectorAll('.type-btn')]
     .find(b => b.getAttribute('onclick').includes(`'${seg.type}'`));
   if (typeBtn) pickType(typeBtn, seg.type);
-  document.getElementById('fFrom').value = seg.origin || '';
-  document.getElementById('fTo').value = seg.destination || '';
+  document.getElementById('fFrom').value    = seg.origin || '';
+  document.getElementById('fTo').value      = seg.destination || '';
   document.getElementById('fCarrier').value = seg.carrier || '';
   document.getElementById('fDepDate').value = (seg.departs_at||'').slice(0,10);
   document.getElementById('fDepTime').value = (seg.departs_at||'').slice(11,16);
   document.getElementById('fArrDate').value = (seg.arrives_at||'').slice(0,10);
   document.getElementById('fArrTime').value = (seg.arrives_at||'').slice(11,16);
-  document.getElementById('fDepTz').value = seg.departs_tz || '';
-  document.getElementById('fRef').value = seg.confirmation_ref || '';
-  document.getElementById('fNotes').value = (seg.meta && seg.meta.notes) || '';
+  document.getElementById('fDepTz').value   = seg.departs_tz || '';
+  document.getElementById('fRef').value     = seg.confirmation_ref || '';
+  document.getElementById('fNotes').value   = (seg.meta && seg.meta.notes) || '';
   document.getElementById('fConfirmed').checked = seg.confirmed;
   document.getElementById('segOverlay').classList.add('open');
 }
@@ -567,7 +787,6 @@ function clearSegForm() {
   ['fFrom','fTo','fCarrier','fDepDate','fDepTime','fArrDate','fArrTime','fDepTz','fRef','fNotes']
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('fConfirmed').checked = false;
-  // reset type to flight
   pickType(document.querySelector('.type-btn'), 'flight');
 }
 
@@ -579,22 +798,22 @@ async function saveSeg() {
   if (!depDate) { toast('Departure date is required'); return; }
   const arrDate = document.getElementById('fArrDate').value;
   const arrTime = document.getElementById('fArrTime').value || '00:00';
-  const notes = document.getElementById('fNotes').value.trim();
+  const notes   = document.getElementById('fNotes').value.trim();
   const body = {
-    trip_id: currentTrip.id,
-    type: currentType,
-    origin: document.getElementById('fFrom').value.trim() || null,
-    destination: document.getElementById('fTo').value.trim() || null,
-    carrier: document.getElementById('fCarrier').value.trim() || null,
-    departs_at: `${depDate}T${depTime}:00`,
-    departs_tz: document.getElementById('fDepTz').value.trim() || null,
-    arrives_at: arrDate ? `${arrDate}T${arrTime}:00` : null,
+    trip_id:          currentTrip.id,
+    type:             currentType,
+    origin:           document.getElementById('fFrom').value.trim() || null,
+    destination:      document.getElementById('fTo').value.trim() || null,
+    carrier:          document.getElementById('fCarrier').value.trim() || null,
+    departs_at:       `${depDate}T${depTime}:00`,
+    departs_tz:       document.getElementById('fDepTz').value.trim() || null,
+    arrives_at:       arrDate ? `${arrDate}T${arrTime}:00` : null,
     confirmation_ref: document.getElementById('fRef').value.trim() || null,
-    confirmed: document.getElementById('fConfirmed').checked,
-    parse_status: 'ok',
-    meta: notes ? {notes} : {},
+    confirmed:        document.getElementById('fConfirmed').checked,
+    parse_status:     'ok',
+    meta:             notes ? {notes} : {},
   };
-  const url = editingSegId ? `${API}/api/segments/${editingSegId}` : `${API}/api/segments/`;
+  const url    = editingSegId ? `${API}/api/segments/${editingSegId}` : `${API}/api/segments/`;
   const method = editingSegId ? 'PATCH' : 'POST';
   const r = await fetch(url, {method, headers:H, body:JSON.stringify(body)});
   if (!r.ok) { toast('Error saving — check console'); console.error(await r.text()); return; }
@@ -603,7 +822,7 @@ async function saveSeg() {
   toast(editingSegId ? 'Segment updated' : 'Segment added');
 }
 
-// ── DELETE SEGMENT ────────────────────────────────────────────
+// ── DELETE ────────────────────────────────────────────────────
 async function deleteSeg(id) {
   if (!confirm('Delete this segment?')) return;
   await fetch(`${API}/api/segments/${id}`, {method:'DELETE', headers:H});
@@ -612,7 +831,10 @@ async function deleteSeg(id) {
 }
 
 // ── TRIP MODAL ────────────────────────────────────────────────
-function openNewTrip() { document.getElementById('tripOverlay').classList.add('open'); setTimeout(()=>document.getElementById('tName').focus(),50); }
+function openNewTrip() {
+  document.getElementById('tripOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('tName').focus(), 50);
+}
 function closeTripModal() { document.getElementById('tripOverlay').classList.remove('open'); }
 
 async function saveTrip() {
@@ -623,7 +845,7 @@ async function saveTrip() {
     start_date: document.getElementById('tStart').value || null,
     end_date:   document.getElementById('tEnd').value || null,
   };
-  const r = await fetch(`${API}/api/trips/`, {method:'POST', headers:H, body:JSON.stringify(body)});
+  const r    = await fetch(`${API}/api/trips/`, {method:'POST', headers:H, body:JSON.stringify(body)});
   const trip = await r.json();
   closeTripModal();
   await loadTrips();
@@ -631,7 +853,7 @@ async function saveTrip() {
   toast('Trip created');
 }
 
-// ── CLOSE MODALS ON OVERLAY CLICK ────────────────────────────
+// ── MODAL CLOSE ON OVERLAY CLICK ─────────────────────────────
 document.getElementById('segOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeSegModal(); });
 document.getElementById('tripOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeTripModal(); });
 
@@ -647,18 +869,15 @@ document.getElementById('tripOverlay').addEventListener('click', e => { if(e.tar
 // ── HELPERS ───────────────────────────────────────────────────
 function fmt(d) {
   if (!d) return '';
-  const dt = new Date(d+'T12:00:00');
-  return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  return new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
 }
 function fmtShort(d) {
   if (!d) return '';
-  const dt = new Date(d+'T12:00:00');
-  return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  return new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'});
 }
 function fmtDay(d) {
-  if (d === 'unknown') return 'Date unknown';
-  const dt = new Date(d+'T12:00:00');
-  return dt.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  if (d==='unknown') return 'Date unknown';
+  return new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
 }
 function toast(msg) {
   const el = document.createElement('div');
@@ -667,21 +886,6 @@ function toast(msg) {
   setTimeout(() => el.remove(), 2500);
 }
 
-async function nlSubmit() {  const input = document.getElementById('nlInput');  const text = input.value.trim();  if (!text || !currentTrip) { toast('Create a trip first'); return; }  const btn = document.getElementById('nlBtn');  btn.textContent = '…'; btn.disabled = true; input.disabled = true;  try {    const r = await fetch(`${API}/api/parse/text`, {method:'POST', headers:H,      body: JSON.stringify({text, trip_id: currentTrip.id})});    if (!r.ok) throw new Error(await r.text());    input.value = '';    await selectTrip(currentTrip);    toast('Segment added ✓');  } catch(e) {    toast('Could not parse — try being more specific');    console.error(e);  } finally {    btn.textContent = 'Add'; btn.disabled = false;    input.disabled = false; input.focus();  }}
-
-async function nlSubmit() {
-  const input = document.getElementById('nlInput');
-  const text = input.value.trim();
-  if (!text||!currentTrip){toast('Create a trip first');return;}
-  const btn=document.getElementById('nlBtn');
-  btn.textContent='...';btn.disabled=true;input.disabled=true;
-  try {
-    const r=await fetch(API+'/api/parse/text',{method:'POST',headers:H,body:JSON.stringify({text:text,trip_id:currentTrip.id})});
-    if(!r.ok)throw new Error(await r.text());
-    input.value='';await selectTrip(currentTrip);toast('Segment added');
-  } catch(e){toast('Could not parse');console.error(e);}
-  finally{btn.textContent='Add';btn.disabled=false;input.disabled=false;input.focus();}
-}
 boot();
 </script>
 </body>
