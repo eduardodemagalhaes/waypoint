@@ -1,0 +1,21 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 178.104.227.162
+          username: eduardo
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /home/eduardo/waypoint
+            git pull origin main
+            sudo systemctl restart waypoint
+            echo "Deployed at $(date)"
