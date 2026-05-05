@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from app.database import Base, engine
-from app.routers import trips, segments, emails, parse
+from app.routers import trips, segments, emails, parse, lookup
 
 Base.metadata.create_all(bind=engine)
 
@@ -33,6 +33,7 @@ app.include_router(trips.router)
 app.include_router(segments.router)
 app.include_router(emails.router)
 app.include_router(parse.router)
+app.include_router(lookup.router)
 
 @app.get("/health")
 def health():
