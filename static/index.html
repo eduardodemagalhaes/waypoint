@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waypoint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#1a1814;--ink2:#4a4540;--ink3:#8a847c;--ink4:#c4bdb4;
+  --paper:#f5f0e8;--paper2:#ede7da;--paper3:#e0d8cc;
+  --accent:#c4611a;--accent2:#e8834a;
+  --green:#2e7d4f;--blue:#1a4a7a;--red:#b03030;
+  --serif:'DM Serif Display',Georgia,serif;
+  --sans:'DM Sans',sans-serif;
+  --mono:'DM Mono',monospace;
+  --r:8px;
+}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height:100vh;font-size:14px;line-height:1.6}
+
+/* ── HEADER ── */
+.hdr{position:sticky;top:0;z-index:100;background:var(--paper);border-bottom:1px solid var(--paper3);
+  display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:54px}
+.logo{font-family:var(--serif);font-size:19px;letter-spacing:-.02em;display:flex;align-items:center;gap:7px}
+.logo-dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.hdr-right{display:flex;gap:8px;align-items:center}
+
+/* ── BUTTONS ── */
+.btn{font-family:var(--sans);font-size:13px;font-weight:500;padding:7px 14px;border-radius:6px;
+  cursor:pointer;border:1px solid transparent;transition:all .15s;letter-spacing:.01em}
+.btn-ghost{background:transparent;color:var(--ink2);border-color:var(--paper3)}
+.btn-ghost:hover{background:var(--paper2);color:var(--ink)}
+.btn-primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn-primary:hover{background:var(--ink2)}
+.btn-danger{background:transparent;color:var(--red);border-color:transparent;padding:4px 8px;font-size:12px}
+.btn-danger:hover{background:#fdecea}
+.btn-sm{padding:5px 10px;font-size:12px}
+
+/* ── LAYOUT ── */
+.main{max-width:760px;margin:0 auto;padding:2rem 1.5rem}
+
+/* ── TRIP HEADER ── */
+.trip-bar{display:flex;align-items:baseline;gap:10px;margin-bottom:1.5rem;position:relative}
+.trip-name{font-family:var(--serif);font-size:28px;letter-spacing:-.02em;cursor:pointer;transition:color .15s}
+.trip-name:hover{color:var(--accent)}
+.trip-caret{font-size:11px;color:var(--ink3);cursor:pointer}
+.trip-meta{font-size:12px;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;font-weight:300}
+
+/* ── TRIP DROPDOWN ── */
+.trip-dd{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--paper);
+  border:1px solid var(--paper3);border-radius:10px;min-width:220px;
+  box-shadow:0 8px 24px rgba(0,0,0,.09);z-index:50;overflow:hidden}
+.trip-dd.open{display:block}
+.trip-dd-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--paper2);font-size:13px;transition:background .1s}
+.trip-dd-item:last-child{border-bottom:none}
+.trip-dd-item:hover{background:var(--paper2)}
+.trip-dd-name{font-weight:500}
+.trip-dd-date{font-size:11px;color:var(--ink3);margin-top:1px}
+.trip-dd-new{color:var(--accent);font-weight:500}
+
+/* ── STATUS BAR ── */
+.status{display:flex;gap:0;margin-bottom:1.75rem;background:var(--paper2);
+  border:1px solid var(--paper3);border-radius:var(--r);overflow:hidden}
+.status-item{flex:1;padding:10px 14px;border-right:1px solid var(--paper3)}
+.status-item:last-child{border-right:none}
+.status-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);font-weight:500}
+.status-val{font-size:14px;font-weight:500;color:var(--ink);margin-top:1px}
+.status-val.accent{color:var(--accent)}
+
+/* ── BANNER ── */
+.banner{display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:var(--r);
+  margin-bottom:1.25rem;font-size:13px}
+.banner-warn{background:#fef3e8;border:1px solid #f5d5b0;color:var(--accent)}
+.banner-ok{background:#e8f5ef;border:1px solid #b0d5be;color:var(--green)}
+
+/* ── TIMELINE ── */
+.day-label{display:flex;align-items:center;gap:10px;padding:8px 0;
+  position:sticky;top:54px;background:var(--paper);z-index:10}
+.day-date{font-family:var(--serif);font-size:13px;font-style:italic;color:var(--ink3);white-space:nowrap}
+.day-line{flex:1;height:1px;background:var(--paper3)}
+
+.seg{display:grid;grid-template-columns:50px 1fr;gap:0 14px;margin-bottom:2px}
+.seg-tc{display:flex;flex-direction:column;align-items:center;padding-top:16px}
+.seg-time{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--ink2);white-space:nowrap}
+.seg-line{width:1px;flex:1;background:var(--paper3);margin-top:5px;min-height:14px}
+
+.seg-card{background:var(--paper);border:1px solid var(--paper3);border-radius:10px;
+  padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.seg-card:hover{border-color:var(--ink4);background:var(--paper2)}
+.seg-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:10px 0 0 10px}
+.seg-card.flight::before{background:var(--blue)}
+.seg-card.hotel::before{background:var(--accent)}
+.seg-card.train::before{background:var(--green)}
+.seg-card.car::before{background:var(--ink3)}
+.seg-card.activity::before{background:#7a4a9a}
+.seg-card.other::before{background:var(--ink4)}
+
+.seg-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.seg-icon{font-size:15px;line-height:1;margin-top:2px;flex-shrink:0}
+.seg-main{flex:1;min-width:0}
+.seg-route{font-family:var(--serif);font-size:16px;letter-spacing:-.01em;color:var(--ink)}
+.seg-route .arr{color:var(--ink4);font-size:13px;margin:0 5px}
+.seg-sub{font-size:12px;color:var(--ink3);margin-top:2px}
+.seg-right{text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.conf-ref{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.06em;text-transform:uppercase}
+
+.badge{display:inline-block;font-size:10px;font-weight:500;letter-spacing:.06em;
+  text-transform:uppercase;padding:2px 6px;border-radius:4px}
+.badge-ok{background:#e8f5ef;color:var(--green)}
+.badge-pending{background:#fef3e8;color:var(--accent)}
+.badge-review{background:#fdecea;color:var(--red)}
+
+.seg-detail{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--paper3);
+  display:none;grid-template-columns:repeat(3,1fr);gap:8px}
+.seg-detail.open{display:grid}
+.det-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);font-weight:500}
+.det-val{font-size:13px;color:var(--ink);margin-top:1px}
+.det-val.warn{color:var(--red)}
+
+.seg-actions{display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid var(--paper3)}
+
+/* ── NIGHT BRIDGE ── */
+.bridge{display:grid;grid-template-columns:50px 1fr;gap:0 14px;margin-bottom:2px}
+.bridge-line{display:flex;justify-content:center}
+.bridge-bar{width:1px;height:28px;background:repeating-linear-gradient(
+  to bottom,var(--accent) 0,var(--accent) 4px,transparent 4px,transparent 8px);opacity:.35}
+.bridge-lbl{display:flex;align-items:center;font-size:11px;color:var(--ink3);letter-spacing:.03em}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:3rem 1rem}
+.empty-title{font-family:var(--serif);font-size:22px;font-style:italic;color:var(--ink2);margin-bottom:6px}
+.empty-sub{font-size:13px;color:var(--ink3);line-height:1.7}
+
+/* ── MODAL ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(26,24,20,.55);
+  z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.overlay.open{display:flex}
+.modal{background:var(--paper);border-radius:12px;padding:24px;width:100%;max-width:460px;
+  border:1px solid var(--paper3);max-height:90vh;overflow-y:auto;
+  animation:slideUp .2s ease both}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.modal-title{font-family:var(--serif);font-size:21px;letter-spacing:-.02em;margin-bottom:18px}
+.form-row{margin-bottom:13px}
+.form-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);
+  font-weight:500;display:block;margin-bottom:5px}
+.form-input{width:100%;padding:8px 11px;border:1px solid var(--paper3);border-radius:6px;
+  font-family:var(--sans);font-size:14px;background:var(--paper);color:var(--ink);
+  outline:none;transition:border-color .15s}
+.form-input:focus{border-color:var(--ink4);background:#fff}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+
+/* ── TYPE PICKER ── */
+.type-picker{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.type-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;
+  border:1px solid var(--paper3);border-radius:8px;cursor:pointer;background:var(--paper);
+  transition:all .15s;font-family:var(--sans)}
+.type-btn:hover{border-color:var(--ink4);background:var(--paper2)}
+.type-btn.sel{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+.type-btn-icon{font-size:17px;line-height:1}
+.type-btn-lbl{font-size:9px;font-weight:500;letter-spacing:.04em;color:var(--ink3);text-transform:uppercase}
+.type-btn.sel .type-btn-lbl{color:var(--ink4)}
+
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;
+  padding-top:14px;border-top:1px solid var(--paper3)}
+
+/* ── NEW TRIP MODAL ── */
+.trip-modal{max-width:380px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:var(--paper);
+  padding:10px 16px;border-radius:8px;font-size:13px;z-index:999;
+  animation:fadeIn .2s ease;pointer-events:none}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── LOADING ── */
+.nl-bar{display:flex;align-items:center;gap:8px;background:var(--paper2);border:1px solid var(--paper3);border-radius:var(--r);padding:8px 12px;margin-bottom:1.25rem}
+.nl-icon{color:var(--accent);font-size:16px;flex-shrink:0}
+.nl-input{flex:1;border:none;background:transparent;font-family:var(--sans);font-size:14px;color:var(--ink);outline:none}
+.nl-input::placeholder{color:var(--ink4)}
+.nl-loading{opacity:.5;pointer-events:none}
+.loading{text-align:center;padding:3rem;color:var(--ink3);font-size:13px;font-style:italic}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="logo"><div class="logo-dot"></div>Waypoint</div>
+  <div class="hdr-right">
+    <button class="btn btn-ghost btn-sm" onclick="openNewTrip()">+ New trip</button>
+    <button class="btn btn-primary btn-sm" onclick="openAddSeg()">+ Add segment</button>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- TRIP BAR -->
+  <div class="trip-bar" id="tripBar">
+    <div style="position:relative">
+      <span class="trip-name" id="tripName" onclick="toggleDD()">—</span>
+      <span class="trip-caret" onclick="toggleDD()">▾</span>
+      <div class="trip-dd" id="tripDD"></div>
+    </div>
+    <span class="trip-meta" id="tripMeta"></span>
+  </div>
+
+  <!-- NL INPUT -->
+  <div class="nl-bar" id="nlBar">
+    <span class="nl-icon">✦</span>
+    <input class="nl-input" id="nlInput" onkeydown="if(event.key==='Enter')nlSubmit()" placeholder="e.g. flight ZRH to HRG Oct 10 07:15 Swiss LX392…" onkeydown="if(event.key==='Enter')nlSubmit()">
+    <button class="btn btn-primary btn-sm" id="nlBtn" onclick="nlSubmit()">Add</button>
+  </div>
+
+  <!-- BANNER -->
+  <div class="banner banner-warn" id="reviewBanner" style="display:none">
+    <span>⚠</span>
+    <span id="reviewText"></span>
+    <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="document.getElementById('reviewBanner').style.display='none'">Dismiss</button>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="status" id="statusBar" style="display:none">
+    <div class="status-item"><div class="status-lbl">Departs</div><div class="status-val" id="sDep">—</div></div>
+    <div class="status-item"><div class="status-lbl">Returns</div><div class="status-val" id="sRet">—</div></div>
+    <div class="status-item"><div class="status-lbl">Segments</div><div class="status-val" id="sSeg">0</div></div>
+    <div class="status-item"><div class="status-lbl">Next up</div><div class="status-val accent" id="sNext">—</div></div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div id="timeline"><div class="loading">Loading…</div></div>
+
+</main>
+
+<!-- ══════════ ADD / EDIT SEGMENT MODAL ══════════ -->
+<div class="overlay" id="segOverlay">
+<div class="modal">
+  <div class="modal-title" id="segModalTitle">Add segment</div>
+
+  <div class="form-row">
+    <label class="form-label">Type</label>
+    <div class="type-picker">
+      <button class="type-btn sel" onclick="pickType(this,'flight')"><span class="type-btn-icon">✈</span><span class="type-btn-lbl">Flight</span></button>
+      <button class="type-btn" onclick="pickType(this,'hotel')"><span class="type-btn-icon">🏨</span><span class="type-btn-lbl">Hotel</span></button>
+      <button class="type-btn" onclick="pickType(this,'train')"><span class="type-btn-icon">🚂</span><span class="type-btn-lbl">Train</span></button>
+      <button class="type-btn" onclick="pickType(this,'car')"><span class="type-btn-icon">🚗</span><span class="type-btn-lbl">Car</span></button>
+      <button class="type-btn" onclick="pickType(this,'activity')"><span class="type-btn-icon">🎯</span><span class="type-btn-lbl">Activity</span></button>
+      <button class="type-btn" onclick="pickType(this,'other')"><span class="type-btn-icon">📌</span><span class="type-btn-lbl">Other</span></button>
+    </div>
+  </div>
+
+  <div class="form-grid">
+    <div class="form-row">
+      <label class="form-label" id="lblFrom">From</label>
+      <input class="form-input" id="fFrom" placeholder="ZRH or Zurich">
+    </div>
+    <div class="form-row">
+      <label class="form-label" id="lblTo">To</label>
+      <input class="form-input" id="fTo" placeholder="HRG or Hurghada">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label class="form-label" id="lblCarrier">Carrier / Name</label>
+    <input class="form-input" id="fCarrier" placeholder="Swiss LX 392">
+  </div>
+
+  <div class="form-grid">
+    <div class="form-row">
+      <label class="form-label">Departure date</label>
+      <input class="form-input" id="fDepDate" type="date">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Departure time</label>
+      <input class="form-input" id="fDepTime" placeholder="07:15" maxlength="5">
+    </div>
+  </div>
+
+  <div class="form-grid" id="arrRow">
+    <div class="form-row">
+      <label class="form-label">Arrival date</label>
+      <input class="form-input" id="fArrDate" type="date">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Arrival time</label>
+      <input class="form-input" id="fArrTime" placeholder="12:35" maxlength="5">
+    </div>
+  </div>
+
+  <div class="form-grid">
+    <div class="form-row">
+      <label class="form-label">Timezone (dep)</label>
+      <input class="form-input" id="fDepTz" placeholder="Europe/Zurich">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Confirmation ref</label>
+      <input class="form-input" id="fRef" placeholder="LX3K9M">
+    </div>
+  </div>
+
+  <div class="form-row">
+    <label class="form-label">Notes (optional)</label>
+    <input class="form-input" id="fNotes" placeholder="Seat 12A, terminal 2…">
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+    <input type="checkbox" id="fConfirmed" style="accent-color:var(--green)">
+    <label for="fConfirmed" style="font-size:13px;color:var(--ink2);cursor:pointer">Mark as confirmed</label>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeSegModal()">Cancel</button>
+    <button class="btn btn-primary" id="segSaveBtn" onclick="saveSeg()">Save segment</button>
+  </div>
+</div>
+</div>
+
+<!-- ══════════ NEW TRIP MODAL ══════════ -->
+<div class="overlay" id="tripOverlay">
+<div class="modal trip-modal">
+  <div class="modal-title">New trip</div>
+  <div class="form-row">
+    <label class="form-label">Trip name</label>
+    <input class="form-input" id="tName" placeholder="Egypt, October">
+  </div>
+  <div class="form-grid">
+    <div class="form-row">
+      <label class="form-label">Start date</label>
+      <input class="form-input" id="tStart" type="date">
+    </div>
+    <div class="form-row">
+      <label class="form-label">End date</label>
+      <input class="form-input" id="tEnd" type="date">
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeTripModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveTrip()">Create trip</button>
+  </div>
+</div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────
+const API = '';  // same origin
+const TOKEN = 'd5f9e9b215da795ef927a399c3eba355';
+const H = { 'Content-Type':'application/json', 'X-Token': TOKEN };
+
+// ── STATE ────────────────────────────────────────────────────
+let trips = [], currentTrip = null, editingSegId = null;
+
+// ── BOOT ─────────────────────────────────────────────────────
+async function boot() {
+  await loadTrips();
+  if (trips.length) selectTrip(trips[0]);
+  else renderEmpty();
+}
+
+async function loadTrips() {
+  const r = await fetch(`${API}/api/trips/`, {headers:H});
+  trips = await r.json();
+  renderTripDD();
+}
+
+// ── TRIP DROPDOWN ─────────────────────────────────────────────
+function renderTripDD() {
+  const dd = document.getElementById('tripDD');
+  dd.innerHTML = trips.map(t => `
+    <div class="trip-dd-item" onclick="selectTrip(trips.find(x=>x.id==='${t.id}'));toggleDD()">
+      <div class="trip-dd-name">${t.name}</div>
+      <div class="trip-dd-date">${fmt(t.start_date)} – ${fmt(t.end_date)}</div>
+    </div>`).join('') +
+    `<div class="trip-dd-item" onclick="openNewTrip();toggleDD()">
+      <div class="trip-dd-new">+ New trip</div>
+    </div>`;
+}
+
+function toggleDD() {
+  document.getElementById('tripDD').classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.trip-bar')) document.getElementById('tripDD').classList.remove('open');
+});
+
+async function selectTrip(trip) {
+  currentTrip = trip;
+  document.getElementById('tripName').textContent = trip.name;
+  // fetch full trip with segments
+  const r = await fetch(`${API}/api/trips/${trip.id}`, {headers:H});
+  currentTrip = await r.json();
+  renderMeta();
+  renderTimeline();
+}
+
+function renderMeta() {
+  const t = currentTrip;
+  document.getElementById('tripMeta').textContent =
+    [fmt(t.start_date), fmt(t.end_date)].filter(Boolean).join(' – ');
+  document.getElementById('statusBar').style.display = 'flex';
+  document.getElementById('sDep').textContent = fmtShort(t.start_date) || '—';
+  document.getElementById('sRet').textContent = fmtShort(t.end_date) || '—';
+  const segs = t.segments || [];
+  document.getElementById('sSeg').textContent = segs.length;
+  // days until start
+  if (t.start_date) {
+    const diff = Math.ceil((new Date(t.start_date) - new Date()) / 86400000);
+    document.getElementById('sNext').textContent = diff > 0 ? `${diff}d` : diff === 0 ? 'Today' : 'Past';
+  }
+  // review banner
+  const review = segs.filter(s => s.parse_status === 'needs_review' || s.parse_status === 'failed');
+  const rb = document.getElementById('reviewBanner');
+  if (review.length) {
+    rb.style.display = 'flex';
+    document.getElementById('reviewText').textContent =
+      `${review.length} segment${review.length>1?'s':''} need${review.length>1?'':'s'} review.`;
+  } else { rb.style.display = 'none'; }
+}
+
+// ── TIMELINE ─────────────────────────────────────────────────
+const TYPE_ICON = {flight:'✈',hotel:'🏨',train:'🚂',car:'🚗',activity:'🎯',other:'📌'};
+const BADGE = {ok:'badge-ok',needs_review:'badge-review',failed:'badge-review',pending:'badge-pending'};
+const BADGE_LBL = {ok:'Confirmed',needs_review:'Needs review',failed:'Failed',pending:'Pending'};
+
+function renderTimeline() {
+  const tl = document.getElementById('timeline');
+  const segs = (currentTrip.segments || []).slice().sort((a,b) => (a.departs_at||'').localeCompare(b.departs_at||''));
+  if (!segs.length) {
+    tl.innerHTML = `<div class="empty">
+      <div class="empty-title">No segments yet</div>
+      <div class="empty-sub">Add your first flight, hotel, or activity<br>using the button above.</div>
+    </div>`; return;
+  }
+  // group by day
+  const days = {};
+  segs.forEach(s => {
+    const day = (s.departs_at || '').slice(0,10) || 'unknown';
+    if (!days[day]) days[day] = [];
+    days[day].push(s);
+  });
+  let html = '';
+  Object.entries(days).forEach(([day, daySegs]) => {
+    html += `<div class="day-label"><span class="day-date">${fmtDay(day)}</span><div class="day-line"></div></div>`;
+    daySegs.forEach(s => {
+      const time = (s.departs_at||'').slice(11,16) || '—';
+      const isHotel = s.type === 'hotel';
+      const dest = s.destination ? `<span class="arr">→</span>${s.destination}` : '';
+      const sub = [s.carrier, s.arrives_at ? `Arr ${s.arrives_at.slice(11,16)}` : null]
+        .filter(Boolean).join(' · ');
+      const bClass = s.confirmed ? 'badge-ok' : BADGE[s.parse_status] || 'badge-pending';
+      const bLbl = s.confirmed ? 'Confirmed' : BADGE_LBL[s.parse_status] || 'Pending';
+      const nights = isHotel && s.meta && s.meta.nights ? ` · ${s.meta.nights} nights` : '';
+      html += `<div class="seg" data-id="${s.id}">
+        <div class="seg-tc"><span class="seg-time">${time}</span><div class="seg-line"></div></div>
+        <div class="seg-card ${s.type}" onclick="toggleDetail(this)">
+          <div class="seg-top">
+            <span class="seg-icon">${TYPE_ICON[s.type]||'📌'}</span>
+            <div class="seg-main">
+              <div class="seg-route">${s.origin||'—'}${dest}${nights}</div>
+              <div class="seg-sub">${sub}</div>
+            </div>
+            <div class="seg-right">
+              ${s.confirmation_ref ? `<div class="conf-ref">${s.confirmation_ref}</div>` : ''}
+              <span class="badge ${bClass}">${bLbl}</span>
+            </div>
+          </div>
+          <div class="seg-detail">
+            ${s.departs_tz ? `<div><div class="det-lbl">Timezone</div><div class="det-val">${s.departs_tz}</div></div>` : ''}
+            ${s.meta && s.meta.notes ? `<div><div class="det-lbl">Notes</div><div class="det-val">${s.meta.notes}</div></div>` : ''}
+            ${s.parse_status==='needs_review'||s.parse_status==='failed' ? `<div><div class="det-lbl">Status</div><div class="det-val warn">Needs manual review</div></div>` : ''}
+            <div style="grid-column:1/-1" class="seg-actions">
+              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditSeg('${s.id}')">Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteSeg('${s.id}')">Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+      // hotel bridge
+      if (isHotel && s.meta && s.meta.nights && s.meta.nights > 1) {
+        html += `<div class="bridge">
+          <div class="bridge-line"><div class="bridge-bar"></div></div>
+          <div class="bridge-lbl">${s.meta.nights} nights · ${s.carrier||s.origin||''}</div>
+        </div>`;
+      }
+    });
+  });
+  tl.innerHTML = html;
+}
+
+function toggleDetail(card) {
+  card.querySelector('.seg-detail').classList.toggle('open');
+}
+
+function renderEmpty() {
+  document.getElementById('tripName').textContent = 'No trips yet';
+  document.getElementById('tripMeta').textContent = '';
+  document.getElementById('timeline').innerHTML = `<div class="empty">
+    <div class="empty-title">Welcome to Waypoint</div>
+    <div class="empty-sub">Create your first trip to get started.</div>
+  </div>`;
+}
+
+// ── SEGMENT MODAL ─────────────────────────────────────────────
+const TYPE_PLACEHOLDERS = {
+  flight:{from:'ZRH or Zurich',to:'HRG or Hurghada',carrier:'Swiss LX 392',fromLbl:'From',toLbl:'To',carrierLbl:'Flight'},
+  hotel:{from:'City or address',to:'',carrier:'Hotel name',fromLbl:'Location',toLbl:'Check-out date',carrierLbl:'Property'},
+  train:{from:'Bern Hbf',to:'Zürich HB',carrier:'SBB IC 1',fromLbl:'From',toLbl:'To',carrierLbl:'Train'},
+  car:{from:'Pick-up',to:'Drop-off',carrier:'Hertz / Avis…',fromLbl:'Pick-up',toLbl:'Drop-off',carrierLbl:'Provider'},
+  activity:{from:'Location',to:'',carrier:'Operator',fromLbl:'Location',toLbl:'',carrierLbl:'Activity name'},
+  other:{from:'',to:'',carrier:'',fromLbl:'From',toLbl:'To',carrierLbl:'Name'},
+};
+let currentType = 'flight';
+
+function pickType(btn, type) {
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  currentType = type;
+  const p = TYPE_PLACEHOLDERS[type] || TYPE_PLACEHOLDERS.other;
+  document.getElementById('fFrom').placeholder = p.from;
+  document.getElementById('fTo').placeholder = p.to;
+  document.getElementById('fCarrier').placeholder = p.carrier;
+  document.getElementById('lblFrom').textContent = p.fromLbl;
+  document.getElementById('lblTo').textContent = p.toLbl;
+  document.getElementById('lblCarrier').textContent = p.carrierLbl;
+  document.getElementById('arrRow').style.display = ['flight','train'].includes(type) ? 'grid' : 'none';
+}
+
+function openAddSeg() {
+  if (!currentTrip) { toast('Create a trip first'); return; }
+  editingSegId = null;
+  document.getElementById('segModalTitle').textContent = 'Add segment';
+  document.getElementById('segSaveBtn').textContent = 'Save segment';
+  clearSegForm();
+  document.getElementById('fDepDate').value = currentTrip.start_date || '';
+  document.getElementById('fDepTz').value = 'Europe/Zurich';
+  document.getElementById('segOverlay').classList.add('open');
+  document.getElementById('fFrom').focus();
+}
+
+function openEditSeg(id) {
+  const seg = currentTrip.segments.find(s => s.id === id);
+  if (!seg) return;
+  editingSegId = id;
+  document.getElementById('segModalTitle').textContent = 'Edit segment';
+  document.getElementById('segSaveBtn').textContent = 'Update segment';
+  clearSegForm();
+  // set type
+  const typeBtn = [...document.querySelectorAll('.type-btn')]
+    .find(b => b.getAttribute('onclick').includes(`'${seg.type}'`));
+  if (typeBtn) pickType(typeBtn, seg.type);
+  document.getElementById('fFrom').value = seg.origin || '';
+  document.getElementById('fTo').value = seg.destination || '';
+  document.getElementById('fCarrier').value = seg.carrier || '';
+  document.getElementById('fDepDate').value = (seg.departs_at||'').slice(0,10);
+  document.getElementById('fDepTime').value = (seg.departs_at||'').slice(11,16);
+  document.getElementById('fArrDate').value = (seg.arrives_at||'').slice(0,10);
+  document.getElementById('fArrTime').value = (seg.arrives_at||'').slice(11,16);
+  document.getElementById('fDepTz').value = seg.departs_tz || '';
+  document.getElementById('fRef').value = seg.confirmation_ref || '';
+  document.getElementById('fNotes').value = (seg.meta && seg.meta.notes) || '';
+  document.getElementById('fConfirmed').checked = seg.confirmed;
+  document.getElementById('segOverlay').classList.add('open');
+}
+
+function clearSegForm() {
+  ['fFrom','fTo','fCarrier','fDepDate','fDepTime','fArrDate','fArrTime','fDepTz','fRef','fNotes']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fConfirmed').checked = false;
+  // reset type to flight
+  pickType(document.querySelector('.type-btn'), 'flight');
+}
+
+function closeSegModal() { document.getElementById('segOverlay').classList.remove('open'); }
+
+async function saveSeg() {
+  const depDate = document.getElementById('fDepDate').value;
+  const depTime = document.getElementById('fDepTime').value || '00:00';
+  if (!depDate) { toast('Departure date is required'); return; }
+  const arrDate = document.getElementById('fArrDate').value;
+  const arrTime = document.getElementById('fArrTime').value || '00:00';
+  const notes = document.getElementById('fNotes').value.trim();
+  const body = {
+    trip_id: currentTrip.id,
+    type: currentType,
+    origin: document.getElementById('fFrom').value.trim() || null,
+    destination: document.getElementById('fTo').value.trim() || null,
+    carrier: document.getElementById('fCarrier').value.trim() || null,
+    departs_at: `${depDate}T${depTime}:00`,
+    departs_tz: document.getElementById('fDepTz').value.trim() || null,
+    arrives_at: arrDate ? `${arrDate}T${arrTime}:00` : null,
+    confirmation_ref: document.getElementById('fRef').value.trim() || null,
+    confirmed: document.getElementById('fConfirmed').checked,
+    parse_status: 'ok',
+    meta: notes ? {notes} : {},
+  };
+  const url = editingSegId ? `${API}/api/segments/${editingSegId}` : `${API}/api/segments/`;
+  const method = editingSegId ? 'PATCH' : 'POST';
+  const r = await fetch(url, {method, headers:H, body:JSON.stringify(body)});
+  if (!r.ok) { toast('Error saving — check console'); console.error(await r.text()); return; }
+  closeSegModal();
+  await selectTrip(currentTrip);
+  toast(editingSegId ? 'Segment updated' : 'Segment added');
+}
+
+// ── DELETE SEGMENT ────────────────────────────────────────────
+async function deleteSeg(id) {
+  if (!confirm('Delete this segment?')) return;
+  await fetch(`${API}/api/segments/${id}`, {method:'DELETE', headers:H});
+  await selectTrip(currentTrip);
+  toast('Segment deleted');
+}
+
+// ── TRIP MODAL ────────────────────────────────────────────────
+function openNewTrip() { document.getElementById('tripOverlay').classList.add('open'); setTimeout(()=>document.getElementById('tName').focus(),50); }
+function closeTripModal() { document.getElementById('tripOverlay').classList.remove('open'); }
+
+async function saveTrip() {
+  const name = document.getElementById('tName').value.trim();
+  if (!name) { toast('Trip name required'); return; }
+  const body = {
+    name,
+    start_date: document.getElementById('tStart').value || null,
+    end_date:   document.getElementById('tEnd').value || null,
+  };
+  const r = await fetch(`${API}/api/trips/`, {method:'POST', headers:H, body:JSON.stringify(body)});
+  const trip = await r.json();
+  closeTripModal();
+  await loadTrips();
+  selectTrip(trip);
+  toast('Trip created');
+}
+
+// ── CLOSE MODALS ON OVERLAY CLICK ────────────────────────────
+document.getElementById('segOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeSegModal(); });
+document.getElementById('tripOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeTripModal(); });
+
+// ── TIME INPUT AUTO-COLON ─────────────────────────────────────
+['fDepTime','fArrTime'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => {
+    let v = e.target.value.replace(/\D/g,'');
+    if (v.length >= 3) v = v.slice(0,2)+':'+v.slice(2,4);
+    e.target.value = v;
+  });
+});
+
+// ── HELPERS ───────────────────────────────────────────────────
+function fmt(d) {
+  if (!d) return '';
+  const dt = new Date(d+'T12:00:00');
+  return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+}
+function fmtShort(d) {
+  if (!d) return '';
+  const dt = new Date(d+'T12:00:00');
+  return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+}
+function fmtDay(d) {
+  if (d === 'unknown') return 'Date unknown';
+  const dt = new Date(d+'T12:00:00');
+  return dt.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+}
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+async function nlSubmit() {  const input = document.getElementById('nlInput');  const text = input.value.trim();  if (!text || !currentTrip) { toast('Create a trip first'); return; }  const btn = document.getElementById('nlBtn');  btn.textContent = '…'; btn.disabled = true; input.disabled = true;  try {    const r = await fetch(`${API}/api/parse/text`, {method:'POST', headers:H,      body: JSON.stringify({text, trip_id: currentTrip.id})});    if (!r.ok) throw new Error(await r.text());    input.value = '';    await selectTrip(currentTrip);    toast('Segment added ✓');  } catch(e) {    toast('Could not parse — try being more specific');    console.error(e);  } finally {    btn.textContent = 'Add'; btn.disabled = false;    input.disabled = false; input.focus();  }}
+
+async function nlSubmit() {
+  const input = document.getElementById('nlInput');
+  const text = input.value.trim();
+  if (!text||!currentTrip){toast('Create a trip first');return;}
+  const btn=document.getElementById('nlBtn');
+  btn.textContent='...';btn.disabled=true;input.disabled=true;
+  try {
+    const r=await fetch(API+'/api/parse/text',{method:'POST',headers:H,body:JSON.stringify({text:text,trip_id:currentTrip.id})});
+    if(!r.ok)throw new Error(await r.text());
+    input.value='';await selectTrip(currentTrip);toast('Segment added');
+  } catch(e){toast('Could not parse');console.error(e);}
+  finally{btn.textContent='Add';btn.disabled=false;input.disabled=false;input.focus();}
+}
+boot();
+</script>
+</body>
+</html>
