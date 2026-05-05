@@ -200,6 +200,17 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   padding-top:14px;border-top:1px solid var(--paper3)}
 .trip-modal{max-width:380px}
 
+/* ── TIME STRIP ── */
+.time-strip{display:flex;align-items:center;gap:6px;margin:4px 0 2px;font-family:var(--mono);font-size:12px}
+.ts-dep{font-weight:500;color:var(--ink);white-space:nowrap}
+.ts-arr{font-weight:500;color:var(--ink);white-space:nowrap}
+.ts-arr.ts-unknown{color:var(--ink4);font-style:italic;font-family:var(--sans);font-size:11px;font-weight:400}
+.ts-line{flex:1;height:1px;background:var(--paper3);position:relative;min-width:20px}
+.ts-dur{position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+  font-size:10px;color:var(--ink3);white-space:nowrap;background:var(--paper);padding:0 3px;
+  font-family:var(--sans);font-weight:400}
+.ts-overnight{font-size:9px;color:var(--accent);font-family:var(--sans);vertical-align:super;margin-left:1px}
+
 /* ── TOAST ── */
 .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:var(--paper);
   padding:10px 16px;border-radius:8px;font-size:13px;z-index:999;
@@ -474,21 +485,47 @@ function renderTimeline() {
   Object.entries(days).forEach(([day, daySegs]) => {
     html += `<div class="day-label"><span class="day-date">${fmtDay(day)}</span><div class="day-line"></div></div>`;
     daySegs.forEach(s => {
-      const time   = (s.departs_at||'').slice(11,16) || '—';
-      const isHotel = s.type === 'hotel';
-      const dest   = s.destination ? `<span class="arr">→</span>${s.destination}` : '';
-      const sub    = [s.carrier, s.arrives_at ? `Arr ${s.arrives_at.slice(11,16)}` : null].filter(Boolean).join(' · ');
-      const bClass = s.confirmed ? 'badge-ok' : BADGE[s.parse_status] || 'badge-pending';
-      const bLbl   = s.confirmed ? 'Confirmed' : BADGE_LBL[s.parse_status] || 'Pending';
-      const nights = isHotel && s.meta && s.meta.nights ? ` · ${s.meta.nights} nights` : '';
+      const isHotel    = s.type === 'hotel';
+      const isFlight   = s.type === 'flight' || s.type === 'train';
+      const depTime    = depT(s.departs_at);
+      const arrTime    = arrT(s.departs_at, s.arrives_at);
+      const overnight  = overnightDays(s.departs_at, s.arrives_at);
+      const duration   = flightDuration(s.departs_at, s.arrives_at, s.departs_tz, s.arrives_tz);
+      const bClass     = s.confirmed ? 'badge-ok' : BADGE[s.parse_status] || 'badge-pending';
+      const bLbl       = s.confirmed ? 'Confirmed' : BADGE_LBL[s.parse_status] || 'Pending';
+      const nights     = isHotel && s.meta && s.meta.nights ? ` · ${s.meta.nights} nights` : '';
+
+      // Route label: prefer short codes, fall back to names
+      const orig  = s.origin      || '—';
+      const dest  = s.destination || null;
+      const routeHtml = dest
+        ? `${orig}<span class="arr"> → </span>${dest}`
+        : orig;
+
+      // Time strip for flights/trains
+      let timeStrip = '';
+      if (isFlight && depTime && arrTime) {
+        timeStrip = `<div class="time-strip">
+          <span class="ts-dep">${depTime}</span>
+          <span class="ts-line">${duration ? `<span class="ts-dur">${duration}</span>` : ''}</span>
+          <span class="ts-arr">${arrTime}${overnight ? `<sup class="ts-overnight">+${overnight}</sup>` : ''}</span>
+        </div>`;
+      }
+      // no time strip if arrival unknown — dep time already shown in left gutter
+
+      // Sub-line: carrier · ref
+      const subParts = [s.carrier].filter(Boolean);
+      const sub = subParts.join(' · ');
+
       html += `<div class="seg" data-id="${s.id}">
-        <div class="seg-tc"><span class="seg-time">${time}</span><div class="seg-line"></div></div>
+        <div class="seg-tc"><span class="seg-time">${depTime||'—'}</span><div class="seg-line"></div></div>
         <div class="seg-card ${s.type}" onclick="toggleDetail(this)">
           <div class="seg-top">
             <span class="seg-icon">${TYPE_ICON[s.type]||'📌'}</span>
             <div class="seg-main">
-              <div class="seg-route">${s.origin||'—'}${dest}${nights}</div>
-              <div class="seg-sub">${sub}</div>
+              <div class="seg-route">${routeHtml}${nights}</div>
+              ${timeStrip}
+              ${sub ? `<div class="seg-sub">${sub}</div>` : ''}
             </div>
             <div class="seg-right">
               ${s.confirmation_ref ? `<div class="conf-ref">${s.confirmation_ref}</div>` : ''}
@@ -496,9 +533,12 @@ function renderTimeline() {
             </div>
           </div>
           <div class="seg-detail">
-            ${s.departs_tz ? `<div><div class="det-lbl">Timezone</div><div class="det-val">${s.departs_tz}</div></div>` : ''}
+            ${s.departs_tz ? `<div><div class="det-lbl">Dep timezone</div><div class="det-val">${s.departs_tz}</div></div>` : ''}
+            ${s.arrives_tz && s.arrives_tz !== s.departs_tz ? `<div><div class="det-lbl">Arr timezone</div><div class="det-val">${s.arrives_tz}</div></div>` : ''}
+            ${s.meta && s.meta.terminal_departure ? `<div><div class="det-lbl">Terminal (dep)</div><div class="det-val">${s.meta.terminal_departure}</div></div>` : ''}
+            ${s.meta && s.meta.terminal_arrival ? `<div><div class="det-lbl">Terminal (arr)</div><div class="det-val">${s.meta.terminal_arrival}</div></div>` : ''}
             ${s.meta && s.meta.notes ? `<div><div class="det-lbl">Notes</div><div class="det-val">${s.meta.notes}</div></div>` : ''}
-            ${s.meta && s.meta.aviationstack_note ? `<div style="grid-column:1/-1"><div class="det-lbl">Flight data</div><div class="det-val warn" style="font-size:12px">${s.meta.aviationstack_note}</div></div>` : ''}
+            ${s.meta && s.meta.aviationstack_note && !s.meta.aviationstack_verified ? `<div style="grid-column:1/-1"><div class="det-lbl">✈ Flight data</div><div class="det-val" style="font-size:11px;color:var(--ink3)">${s.meta.aviationstack_note}</div></div>` : ''}
             ${s.parse_status==='needs_review'||s.parse_status==='failed' ? `<div><div class="det-lbl">Status</div><div class="det-val warn">Needs manual review</div></div>` : ''}
             <div style="grid-column:1/-1" class="seg-actions">
               <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditSeg('${s.id}')">Edit</button>
@@ -884,6 +924,50 @@ function toast(msg) {
   el.className = 'toast'; el.textContent = msg;
   document.body.appendChild(el);
   setTimeout(() => el.remove(), 2500);
+}
+
+// ── TIME HELPERS ─────────────────────────────────────────────
+function depT(departs_at) {
+  if (!departs_at) return null;
+  const t = departs_at.slice(11,16);
+  return t && t !== '00:00' ? t : null;
+}
+
+function arrT(departs_at, arrives_at) {
+  if (!arrives_at) return null;
+  const t = arrives_at.slice(11,16);
+  if (!t || t === '00:00') return null;
+  return t;
+}
+
+function overnightDays(departs_at, arrives_at) {
+  if (!departs_at || !arrives_at) return 0;
+  const d1 = departs_at.slice(0,10);
+  const d2 = arrives_at.slice(0,10);
+  if (d1 === d2) return 0;
+  const diff = Math.round((new Date(d2) - new Date(d1)) / 86400000);
+  return diff > 0 ? diff : 0;
+}
+
+function flightDuration(dep_at,arr_at,dep_tz,arr_tz){
+  if(!dep_at||!arr_at)return null;
+  function toUTC(s,tz){
+    const[dp,tp]=s.slice(0,16).split("T");
+    const[y,mo,d]=dp.split("-").map(Number);
+    const[h,mi]=tp.split(":").map(Number);
+    if(!tz)return new Date(y,mo-1,d,h,mi);
+    try{
+      const u=Date.UTC(y,mo-1,d,h,mi);
+      const f=new Intl.DateTimeFormat("en",{timeZone:tz,hour:"2-digit",minute:"2-digit",hour12:false});
+      const p={};f.formatToParts(new Date(u)).forEach(x=>p[x.type]=x.value);
+      const om=(h-Number(p.hour==="24"?0:p.hour))*60+(mi-Number(p.minute));
+      return new Date(u+om*60000);
+    }catch(e){return new Date(y,mo-1,d,h,mi);}
+  }
+  const mins=Math.round((toUTC(arr_at,arr_tz)-toUTC(dep_at,dep_tz))/60000);
+  if(mins<=0||mins>24*60)return null;
+  const h=Math.floor(mins/60),m=mins%60;
+  return h>0?(m>0?`${h}h ${m}m`:`${h}h`):`${m}m`;
 }
 
 boot();
