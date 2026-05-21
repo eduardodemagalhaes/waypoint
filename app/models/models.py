@@ -13,6 +13,8 @@ class Trip(Base):
     name          = Column(String, nullable=False)
     start_date    = Column(String, nullable=True)
     end_date      = Column(String, nullable=True)
+    location      = Column(String, nullable=True)
+    description   = Column(String, nullable=True)
     home_currency = Column(String, default="CHF")
     created_at    = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     segments   = relationship("Segment",  back_populates="trip", cascade="all, delete-orphan")

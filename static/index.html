@@ -41,7 +41,34 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .btn-sm{padding:5px 10px;font-size:12px}
 
 /* ── LAYOUT ── */
-.main{max-width:760px;margin:0 auto;padding:2rem 1.5rem}
+.app{display:flex;min-height:calc(100vh - 49px)}
+.sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--paper3);
+  background:var(--paper2);padding:12px 0;overflow-y:auto;
+  position:sticky;top:49px;height:calc(100vh - 49px)}
+.sidebar-section{padding:6px 14px 2px;font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.08em;color:var(--ink4);margin-top:8px}
+.sidebar-section:first-child{margin-top:0}
+.sidebar-item{display:flex;flex-direction:column;padding:8px 14px;cursor:pointer;
+  border-radius:0;transition:background .1s;border-left:3px solid transparent}
+.sidebar-item:hover{background:var(--paper3)}
+.sidebar-item.active{background:var(--paper);border-left-color:var(--accent)}
+.sidebar-item-name{font-size:13px;font-weight:500;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-item.active .sidebar-item-name{color:var(--accent)}
+.sidebar-item-date{font-size:11px;color:var(--ink3);margin-top:1px}
+.sidebar-item-seg{font-size:10px;color:var(--ink4);margin-top:1px}
+.sidebar-new{display:flex;align-items:center;gap:6px;padding:8px 14px;
+  cursor:pointer;color:var(--accent);font-size:13px;font-weight:500;
+  margin-top:4px;border-left:3px solid transparent}
+.sidebar-new:hover{background:var(--paper3)}
+.main{flex:1;min-width:0;padding:2rem 1.5rem;max-width:760px}
+@media(max-width:700px){
+  .sidebar{display:none}
+  .sidebar.mob-open{display:block;position:fixed;left:0;top:49px;z-index:90;
+    height:calc(100vh - 49px);box-shadow:4px 0 16px rgba(0,0,0,.1)}
+  .mob-overlay{display:none;position:fixed;inset:0;top:49px;background:rgba(0,0,0,.3);z-index:89}
+  .mob-overlay.open{display:block}
+}
 
 /* ── TRIP BAR ── */
 .trip-bar{display:flex;align-items:baseline;gap:10px;margin-bottom:1.5rem;position:relative}
@@ -91,7 +118,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .nl-input:disabled{opacity:.5}
 
 /* ── DIALOG THREAD ── */
-.dialog-thread{padding:0 12px 10px;display:flex;flex-direction:column;gap:8px}
+.dialog-thread{padding:10px 12px 6px;display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto}
 .dialog-msg{font-size:13px;line-height:1.55;padding:8px 11px;border-radius:8px;max-width:92%}
 .dialog-msg.bot{background:var(--paper3);color:var(--ink2);align-self:flex-start;border-radius:4px 8px 8px 8px}
 .dialog-msg.user{background:var(--ink);color:var(--paper);align-self:flex-end;border-radius:8px 4px 8px 8px}
@@ -110,6 +137,9 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .av-note{margin:0 12px 10px;padding:8px 11px;background:#fef3e8;border:1px solid #f5d5b0;
   border-radius:6px;font-size:12px;color:var(--accent);line-height:1.5;display:flex;gap:8px}
 .av-note-icon{flex-shrink:0;margin-top:1px}
+.timetable-note{margin:0 12px 6px;padding:8px 11px;border-radius:6px;font-size:0.82rem;display:flex;align-items:flex-start;gap:8px;}
+.tt-ok{background:#e6f4ea;color:#1a6e31;border:1px solid #a8d5b0;}
+.tt-warn{background:#fff3e0;color:#8a4a00;border:1px solid #f5c97a;}
 .summary-footer{display:flex;gap:8px;padding:8px 12px;border-top:1px solid var(--paper3)}
 
 /* ── TIMELINE ── */
@@ -132,6 +162,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .seg-card.train::before{background:var(--green)}
 .seg-card.car::before{background:var(--ink3)}
 .seg-card.activity::before{background:#7a4a9a}
+.seg-card.taxi::before{background:#8b5e00}
 .seg-card.other::before{background:var(--ink4)}
 
 .seg-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
@@ -200,6 +231,38 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   padding-top:14px;border-top:1px solid var(--paper3)}
 .trip-modal{max-width:380px}
 
+.edit-assist-msg{font-size:12px;line-height:1.5;padding:6px 10px;border-radius:8px;max-width:95%}
+.edit-assist-msg.bot{background:var(--paper3);color:var(--ink2);align-self:flex-start}
+.edit-assist-msg.user{background:var(--ink);color:var(--paper);align-self:flex-end}
+
+.datepicker-wrap{position:relative}
+.cal-popup{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:200;
+  background:var(--paper);border:1px solid var(--paper3);border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px;min-width:240px;user-select:none}
+.cal-popup.open{display:block}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.cal-month{font-weight:600;font-size:13px}
+.cal-nav{background:none;border:none;cursor:pointer;font-size:16px;padding:2px 6px;
+  color:var(--ink2);border-radius:4px}
+.cal-nav:hover{background:var(--paper2)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dow{font-size:10px;text-align:center;color:var(--ink3);font-weight:500;padding:2px}
+.cal-day{font-size:12px;text-align:center;padding:5px 2px;border-radius:5px;cursor:pointer;
+  color:var(--ink2)}
+.cal-day:hover{background:var(--paper2)}
+.cal-day.today{font-weight:700;color:var(--accent)}
+.cal-day.sel{background:var(--ink);color:var(--paper)}
+.cal-day.other{color:var(--ink4)}
+.cal-day.empty{pointer-events:none}
+
+/* ── HOTEL CARD ── */
+.hotel-dates{display:flex;align-items:center;gap:8px;margin:4px 0 3px;flex-wrap:wrap}
+.hotel-ci,.hotel-co{font-size:12px;color:var(--ink2);font-weight:400}
+.hotel-dt-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);font-weight:500;margin-right:3px}
+.hotel-arrow{color:var(--ink4);font-size:11px}
+.hotel-phone{font-size:11px;color:var(--ink3);margin-top:2px}
+.hotel-addr{font-size:11px;color:var(--ink3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px}
+
 /* ── TIME STRIP ── */
 .time-strip{display:flex;align-items:center;gap:6px;margin:4px 0 2px;font-family:var(--mono);font-size:12px}
 .ts-dep{font-weight:500;color:var(--ink);white-space:nowrap}
@@ -211,6 +274,56 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   font-family:var(--sans);font-weight:400}
 .ts-overnight{font-size:9px;color:var(--accent);font-family:var(--sans);vertical-align:super;margin-left:1px}
 
+/* ── MAP PIN BUTTON ── */
+
+
+
+/* ── TRIP PLANNER ── */
+.planner{background:var(--paper);border:1px solid var(--paper3);border-radius:14px;
+  overflow:hidden;max-width:580px;margin:0 auto}
+.planner-header{background:var(--ink);color:var(--paper);padding:16px 20px;
+  display:flex;align-items:center;gap:10px}
+.planner-title{font-family:var(--serif);font-size:20px;letter-spacing:-.01em}
+.planner-sub{font-size:12px;opacity:.6;margin-top:1px}
+.planner-thread{padding:14px 16px;display:flex;flex-direction:column;gap:8px;
+  max-height:340px;overflow-y:auto}
+.planner-msg{font-size:13px;line-height:1.55;padding:9px 12px;border-radius:10px;max-width:90%}
+.planner-msg.bot{background:var(--paper2);color:var(--ink2);align-self:flex-start;
+  border-radius:4px 10px 10px 10px}
+.planner-msg.user{background:var(--ink);color:var(--paper);align-self:flex-end;
+  border-radius:10px 4px 10px 10px}
+.planner-msg.saved{background:#f0faf0;border:1px solid #b8e0b8;color:#2a6e2a;
+  font-size:12px;align-self:center;border-radius:8px;text-align:center}
+.planner-msg.thinking{background:var(--paper2);color:var(--ink3);font-style:italic;
+  align-self:flex-start;border-radius:4px 10px 10px 10px}
+.planner-input-row{display:flex;gap:8px;padding:12px 16px;
+  border-top:1px solid var(--paper3);background:var(--paper)}
+.planner-done{padding:10px 16px;border-top:1px solid var(--paper3);
+  display:flex;gap:8px;align-items:center;background:#f0faf0}
+
+/* ── CONNECTION RESULTS ── */
+.conn-panel{background:var(--paper);border:1px solid var(--paper3);border-radius:10px;
+  margin-top:8px;overflow:hidden;grid-column:1/-1}
+.conn-header{padding:8px 12px;background:var(--paper2);border-bottom:1px solid var(--paper3);
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);
+  display:flex;align-items:center;justify-content:space-between}
+.conn-item{padding:10px 12px;border-bottom:1px solid var(--paper2);display:flex;
+  align-items:center;gap:10px;cursor:pointer;transition:background .1s}
+.conn-item:last-child{border-bottom:none}
+.conn-item:hover{background:var(--paper2)}
+.conn-time{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+.conn-arrow{color:var(--ink4);font-size:11px}
+.conn-meta{font-size:11px;color:var(--ink3);flex:1}
+.conn-plat{font-size:11px;background:var(--ink);color:var(--paper);border-radius:4px;
+  padding:2px 6px;white-space:nowrap}
+.conn-add{font-size:11px;color:var(--blue);border:1px solid var(--blue);border-radius:6px;
+  padding:3px 8px;background:none;cursor:pointer;white-space:nowrap}
+.conn-add:hover{background:var(--blue);color:#fff}
+.conn-fallback{padding:10px 12px}
+.conn-fallback-item{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px}
+.conn-fallback-link{color:var(--blue);text-decoration:none;font-weight:500}
+.conn-fallback-link:hover{text-decoration:underline}
+
 /* ── TOAST ── */
 .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:var(--paper);
   padding:10px 16px;border-radius:8px;font-size:13px;z-index:999;
@@ -221,27 +334,44 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 <body>
 
 <header class="hdr">
-  <div class="logo"><div class="logo-dot"></div>Waypoint</div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="btn btn-ghost btn-sm" id="mobMenuBtn" onclick="toggleSidebar()"
+      style="display:none;font-size:18px;padding:2px 8px">☰</button>
+    <div class="logo"><div class="logo-dot"></div>Waypoint</div>
+  </div>
   <div class="hdr-right">
-    <button class="btn btn-ghost btn-sm" onclick="openNewTrip()">+ New trip</button>
+    <button class="btn btn-ghost btn-sm" onclick="openEditTrip()" id="editTripBtn">Edit trip</button>
     <button class="btn btn-primary btn-sm" onclick="openAddSeg()">+ Add segment</button>
   </div>
 </header>
+<div class="mob-overlay" id="mobOverlay" onclick="toggleSidebar()"></div>
+
+<div class="app">
+<nav class="sidebar" id="sidebar">
+  <div id="sidebarContent"><!-- rendered by JS --></div>
+  <div class="sidebar-new" onclick="openNewTrip()">＋ New trip</div>
+  <div class="sidebar-new" onclick="openPlanner()" style="color:var(--ink3);font-size:12px">✦ Plan with AI</div>
+</nav>
 
 <main class="main">
 
   <!-- TRIP BAR -->
   <div class="trip-bar" id="tripBar">
     <div style="position:relative">
-      <span class="trip-name" id="tripName" onclick="toggleDD()">—</span>
-      <span class="trip-caret" onclick="toggleDD()">▾</span>
-      <div class="trip-dd" id="tripDD"></div>
+      <span class="trip-name" id="tripName">—</span>
     </div>
     <span class="trip-meta" id="tripMeta"></span>
   </div>
 
   <!-- NL / DIALOG BAR -->
   <div class="nl-bar" id="nlBar">
+    <!-- summary card -->
+    <div id="summaryArea"></div>
+    <!-- dialog thread: oldest at top, newest just above input -->
+    <div class="dialog-thread" id="dialogThread" style="display:none"></div>
+    <!-- connection results panel -->
+    <div id="connResults" style="display:none;padding:0 12px 8px"></div>
+    <!-- input always at bottom -->
     <div class="nl-input-row">
       <span class="nl-icon">✦</span>
       <input class="nl-input" id="nlInput"
@@ -250,10 +380,6 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
       <button class="btn btn-primary btn-sm" id="nlBtn" onclick="nlSubmit()">Add</button>
       <button class="btn btn-ghost btn-sm" id="nlCancelBtn" onclick="cancelDialog()" style="display:none">✕</button>
     </div>
-    <!-- dialog thread injected here -->
-    <div class="dialog-thread" id="dialogThread" style="display:none"></div>
-    <!-- summary card injected here -->
-    <div id="summaryArea"></div>
   </div>
 
   <!-- BANNER -->
@@ -276,6 +402,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   <div id="timeline"><div class="loading">Loading…</div></div>
 
 </main>
+</div><!-- .app -->
 
 <!-- ══════════ ADD / EDIT SEGMENT MODAL ══════════ -->
 <div class="overlay" id="segOverlay">
@@ -283,10 +410,11 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   <div class="modal-title" id="segModalTitle">Add segment</div>
   <div class="form-row">
     <label class="form-label">Type</label>
-    <div class="type-picker">
+    <div class="type-picker" style="grid-template-columns:repeat(7,1fr)">
       <button class="type-btn sel" onclick="pickType(this,'flight')"><span class="type-btn-icon">✈</span><span class="type-btn-lbl">Flight</span></button>
       <button class="type-btn" onclick="pickType(this,'hotel')"><span class="type-btn-icon">🏨</span><span class="type-btn-lbl">Hotel</span></button>
       <button class="type-btn" onclick="pickType(this,'train')"><span class="type-btn-icon">🚂</span><span class="type-btn-lbl">Train</span></button>
+      <button class="type-btn" onclick="pickType(this,'taxi')"><span class="type-btn-icon">🚕</span><span class="type-btn-lbl">Taxi</span></button>
       <button class="type-btn" onclick="pickType(this,'car')"><span class="type-btn-icon">🚗</span><span class="type-btn-lbl">Car</span></button>
       <button class="type-btn" onclick="pickType(this,'activity')"><span class="type-btn-icon">🎯</span><span class="type-btn-lbl">Activity</span></button>
       <button class="type-btn" onclick="pickType(this,'other')"><span class="type-btn-icon">📌</span><span class="type-btn-lbl">Other</span></button>
@@ -302,27 +430,37 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
       <input class="form-input" id="fTo" placeholder="HRG or Hurghada">
     </div>
   </div>
-  <div class="form-row">
+  <div class="form-row" id="carrierRow">
     <label class="form-label" id="lblCarrier">Carrier / Name</label>
     <input class="form-input" id="fCarrier" placeholder="Swiss LX 392">
   </div>
-  <div class="form-grid">
+  <div class="form-grid" id="flightCarrierRow" style="display:none">
     <div class="form-row">
-      <label class="form-label">Departure date</label>
-      <input class="form-input" id="fDepDate" type="date">
+      <label class="form-label">Airline</label>
+      <input class="form-input" id="fAirline" placeholder="Swiss">
     </div>
     <div class="form-row">
-      <label class="form-label">Departure time</label>
+      <label class="form-label">Flight number</label>
+      <input class="form-input" id="fFlightNum" placeholder="LX966">
+    </div>
+  </div>
+  <div class="form-grid">
+    <div class="form-row">
+      <label class="form-label" id="lblDepDate">Departure date</label>
+      <input class="form-input" id="fDepDate" placeholder="09.05.2026" maxlength="10">
+    </div>
+    <div class="form-row">
+      <label class="form-label" id="lblDepTime">Departure time</label>
       <input class="form-input" id="fDepTime" placeholder="07:15" maxlength="5">
     </div>
   </div>
   <div class="form-grid" id="arrRow">
     <div class="form-row">
-      <label class="form-label">Arrival date</label>
-      <input class="form-input" id="fArrDate" type="date">
+      <label class="form-label" id="lblArrDate">Arrival date</label>
+      <input class="form-input" id="fArrDate" placeholder="11.05.2026" maxlength="10">
     </div>
     <div class="form-row">
-      <label class="form-label">Arrival time</label>
+      <label class="form-label" id="lblArrTime">Arrival time</label>
       <input class="form-input" id="fArrTime" placeholder="12:35" maxlength="5">
     </div>
   </div>
@@ -340,12 +478,50 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
     <label class="form-label">Notes (optional)</label>
     <input class="form-input" id="fNotes" placeholder="Seat 12A, terminal 2…">
   </div>
+  <div id="hotelFields" style="display:none">
+    <div class="form-row">
+      <label class="form-label">Address</label>
+      <input class="form-input" id="fHotelAddress" placeholder="Rua Bandeira Paulista, 555, Sao Paulo">
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label class="form-label">Phone</label>
+        <input class="form-input" id="fHotelPhone" placeholder="+55 11 3706 6600">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Room type</label>
+        <input class="form-input" id="fHotelRoom" placeholder="Queen Studio Suite">
+      </div>
+    </div>
+  </div>
+  <div id="taxiFields" style="display:none">
+    <div class="form-grid">
+      <div class="form-row">
+        <label class="form-label">Phone</label>
+        <input class="form-input" id="fTaxiPhone" placeholder="+55 11 99882 9009">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Driver name</label>
+        <input class="form-input" id="fTaxiDriver" placeholder="Mr. Alvaro">
+      </div>
+    </div>
+  </div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
     <input type="checkbox" id="fConfirmed" style="accent-color:var(--green)">
     <label for="fConfirmed" style="font-size:13px;color:var(--ink2);cursor:pointer">Mark as confirmed</label>
   </div>
+  <!-- Inline assistant chat -->
+  <div id="editAssistPanel" style="display:none;margin-top:10px;border-top:1px solid var(--paper3);padding-top:10px">
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:6px">✦ Assistant</div>
+    <div id="editAssistThread" style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;margin-bottom:8px"></div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input class="form-input" id="editAssistInput" placeholder="e.g. set seat 12A, add terminal…" onkeydown="if(event.key==='Enter')editAssistSend()" style="font-size:13px">
+      <button class="btn btn-primary btn-sm" onclick="editAssistSend()" style="white-space:nowrap">Send</button>
+    </div>
+  </div>
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeSegModal()">Cancel</button>
+    <button class="btn btn-ghost" onclick="toggleEditAssist()" id="editAssistBtn">✦ Ask assistant</button>
     <button class="btn btn-primary" id="segSaveBtn" onclick="saveSeg()">Save segment</button>
   </div>
 </div>
@@ -362,16 +538,85 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   <div class="form-grid">
     <div class="form-row">
       <label class="form-label">Start date</label>
-      <input class="form-input" id="tStart" type="date">
+      <div class="datepicker-wrap">
+        <input class="form-input" id="tStart" placeholder="15.05.2026" maxlength="10" autocomplete="off"
+               onfocus="showCal('tStart','tStartCal')" oninput="parseDate(this.value)&&hideCal('tStartCal')">
+        <div class="cal-popup" id="tStartCal"></div>
+      </div>
     </div>
     <div class="form-row">
       <label class="form-label">End date</label>
-      <input class="form-input" id="tEnd" type="date">
+      <div class="datepicker-wrap">
+        <input class="form-input" id="tEnd" placeholder="19.05.2026" maxlength="10" autocomplete="off"
+               onfocus="showCal('tEnd','tEndCal')" oninput="parseDate(this.value)&&hideCal('tEndCal')">
+        <div class="cal-popup" id="tEndCal"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Trip assistant -->
+  <div style="border-top:1px solid var(--paper3);margin-top:12px;padding-top:10px">
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:6px">✦ Create with assistant</div>
+    <div id="tripAssistThread" style="display:flex;flex-direction:column;gap:5px;max-height:120px;overflow-y:auto;margin-bottom:6px"></div>
+    <div style="display:flex;gap:6px">
+      <input class="form-input" id="tripAssistInput" placeholder='e.g. "Berlin trip 3–7 June"'
+             onkeydown="if(event.key==='Enter')tripAssistSend()" style="font-size:13px">
+      <button class="btn btn-primary btn-sm" onclick="tripAssistSend()">Go</button>
     </div>
   </div>
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeTripModal()">Cancel</button>
     <button class="btn btn-primary" onclick="saveTrip()">Create trip</button>
+  </div>
+</div>
+</div>
+
+<!-- ══════════ MOVE SEGMENT MODAL ══════════ -->
+<div class="overlay" id="moveSegOverlay">
+<div class="modal" style="max-width:360px">
+  <div class="modal-title">Move segment to…</div>
+  <div id="moveTripList" style="margin:8px 0 16px;display:flex;flex-direction:column;gap:6px"></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="document.getElementById('moveSegOverlay').classList.remove('open')">Cancel</button>
+  </div>
+</div>
+</div>
+
+<!-- ══════════ EDIT TRIP MODAL ══════════ -->
+<div class="overlay" id="editTripOverlay">
+<div class="modal trip-modal" style="max-width:480px">
+  <div class="modal-title">Edit trip</div>
+  <div class="form-row">
+    <label class="form-label">Trip name</label>
+    <input class="form-input" id="etName" placeholder="Egypt, October">
+  </div>
+  <div class="form-row">
+    <label class="form-label">Location / destination</label>
+    <input class="form-input" id="etLocation" placeholder="Hurghada, Egypt">
+  </div>
+  <div class="form-grid">
+    <div class="form-row">
+      <label class="form-label">Start date</label>
+      <input class="form-input" id="etStart" placeholder="09.05.2026" maxlength="10">
+    </div>
+    <div class="form-row">
+      <label class="form-label">End date</label>
+      <input class="form-input" id="etEnd" placeholder="11.05.2026" maxlength="10">
+    </div>
+  </div>
+  <div class="form-row">
+    <label class="form-label">Currency</label>
+    <input class="form-input" id="etCurrency" placeholder="CHF" style="max-width:100px">
+  </div>
+  <div class="form-row">
+    <label class="form-label">Notes / description</label>
+    <textarea class="form-input" id="etDesc" placeholder="Family trip, hotel booked, flights confirmed…" rows="3" style="resize:vertical"></textarea>
+  </div>
+  <div class="modal-footer" style="justify-content:space-between">
+    <button class="btn btn-danger btn-sm" onclick="deleteTrip()">Delete trip</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" onclick="closeEditTripModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="updateTrip()">Save changes</button>
+    </div>
   </div>
 </div>
 </div>
@@ -387,14 +632,18 @@ let trips = [], currentTrip = null, editingSegId = null;
 
 // ── DIALOG STATE ─────────────────────────────────────────────
 let dlg = {
-  active:   false,
-  history:  [],
-  draft:    null,
-  avNote:   null,
+  active:false,
+  history:[],
+  draft:null,
+  avNote:null,
+  returnDraft:null,
+  returnAvNote:null,
+  awaitingReturn:false,
 };
 
 // ── BOOT ─────────────────────────────────────────────────────
 async function boot() {
+  if (window.innerWidth <= 700) document.getElementById('mobMenuBtn').style.display = 'inline-flex';
   await loadTrips();
   if (trips.length) selectTrip(trips[0]);
   else renderEmpty();
@@ -403,42 +652,78 @@ async function boot() {
 async function loadTrips() {
   const r = await fetch(`${API}/api/trips/`, {headers:H});
   trips = await r.json();
-  renderTripDD();
+  renderSidebar();
 }
 
-// ── TRIP DROPDOWN ─────────────────────────────────────────────
-function renderTripDD() {
-  const dd = document.getElementById('tripDD');
-  dd.innerHTML = trips.map(t => `
-    <div class="trip-dd-item" onclick="selectTrip(trips.find(x=>x.id==='${t.id}'));toggleDD()">
-      <div class="trip-dd-name">${t.name}</div>
-      <div class="trip-dd-date">${fmt(t.start_date)} – ${fmt(t.end_date)}</div>
-    </div>`).join('') +
-    `<div class="trip-dd-item" onclick="openNewTrip();toggleDD()">
-      <div class="trip-dd-new">+ New trip</div>
-    </div>`;
+// ── SIDEBAR ──────────────────────────────────────────────────
+function renderSidebar() {
+  const today = new Date().toISOString().slice(0,10);
+  const upcoming = trips.filter(t => !t.end_date || t.end_date >= today);
+  const past     = trips.filter(t => t.end_date  && t.end_date <  today);
+  upcoming.sort((a,b) => (a.start_date||'').localeCompare(b.start_date||''));
+  past.sort((a,b)     => (b.start_date||'').localeCompare(a.start_date||''));
+
+  let html = '';
+  if (upcoming.length) {
+    html += '<div class="sidebar-section">Upcoming</div>';
+    html += upcoming.map(t => sidebarItem(t)).join('');
+  }
+  if (past.length) {
+    html += '<div class="sidebar-section">Past</div>';
+    html += past.map(t => sidebarItem(t)).join('');
+  }
+  if (!html) html = '<div style="padding:12px 14px;font-size:12px;color:var(--ink3)">No trips yet</div>';
+  document.getElementById('sidebarContent').innerHTML = html;
 }
 
-function toggleDD() {
-  document.getElementById('tripDD').classList.toggle('open');
+function sidebarItem(t) {
+  const active = currentTrip && t.id === currentTrip.id ? 'active' : '';
+  const segCount = t.segments ? t.segments.length : '';
+  const dates = (t.start_date || t.end_date)
+    ? `${fmtShort(t.start_date)||'?'} – ${fmtShort(t.end_date)||'?'}` : 'No dates';
+  return `<div class="sidebar-item ${active}" onclick="sidebarSelect('${t.id}')">
+    <div class="sidebar-item-name">${t.name}</div>
+    <div class="sidebar-item-date">${dates}</div>
+    ${segCount ? `<div class="sidebar-item-seg">${segCount} segment${segCount===1?'':'s'}</div>` : ''}
+  </div>`;
 }
-document.addEventListener('click', e => {
-  if (!e.target.closest('.trip-bar')) document.getElementById('tripDD').classList.remove('open');
-});
+
+function sidebarSelect(tripId) {
+  const trip = trips.find(t => t.id === tripId);
+  if (trip) { selectTrip(trip); closeSidebar(); }
+}
+
+function toggleDD() {} // legacy no-op
+function renderTripDD() { renderSidebar(); }
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('mob-open');
+  document.getElementById('mobOverlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('mob-open');
+  document.getElementById('mobOverlay').classList.remove('open');
+}
 
 async function selectTrip(trip) {
+  if (!trip) return;
   currentTrip = trip;
   document.getElementById('tripName').textContent = trip.name;
   const r = await fetch(`${API}/api/trips/${trip.id}`, {headers:H});
   currentTrip = await r.json();
+  // Sync segment count back into trips array for sidebar
+  const idx = trips.findIndex(t => t.id === currentTrip.id);
+  if (idx >= 0) trips[idx] = {...trips[idx], segments: currentTrip.segments};
+  renderSidebar();
   renderMeta();
   renderTimeline();
 }
 
 function renderMeta() {
   const t = currentTrip;
-  document.getElementById('tripMeta').textContent =
-    [fmt(t.start_date), fmt(t.end_date)].filter(Boolean).join(' – ');
+  const locPart = t.location ? `${t.location} · ` : '';
+  const datePart = [fmt(t.start_date), fmt(t.end_date)].filter(Boolean).join(' – ');
+  document.getElementById('tripMeta').textContent = locPart + datePart;
   document.getElementById('statusBar').style.display = 'flex';
   document.getElementById('sDep').textContent = fmtShort(t.start_date) || '—';
   document.getElementById('sRet').textContent = fmtShort(t.end_date) || '—';
@@ -461,7 +746,7 @@ function renderMeta() {
 }
 
 // ── TIMELINE ─────────────────────────────────────────────────
-const TYPE_ICON = {flight:'✈',hotel:'🏨',train:'🚂',car:'🚗',activity:'🎯',other:'📌'};
+const TYPE_ICON = {flight:'✈',hotel:'🏨',train:'🚂',taxi:'🚕',car:'🚗',activity:'🎯',other:'📌'};
 const BADGE     = {ok:'badge-ok',needs_review:'badge-review',failed:'badge-review',pending:'badge-pending'};
 const BADGE_LBL = {ok:'Confirmed',needs_review:'Needs review',failed:'Failed',pending:'Pending'};
 
@@ -495,7 +780,7 @@ function renderTimeline() {
       const bLbl       = s.confirmed ? 'Confirmed' : BADGE_LBL[s.parse_status] || 'Pending';
       const nights     = isHotel && s.meta && s.meta.nights ? ` · ${s.meta.nights} nights` : '';
 
-      // Route label: prefer short codes, fall back to names
+      // Route label
       const orig  = s.origin      || '—';
       const dest  = s.destination || null;
       const routeHtml = dest
@@ -511,21 +796,45 @@ function renderTimeline() {
           <span class="ts-arr">${arrTime}${overnight ? `<sup class="ts-overnight">+${overnight}</sup>` : ''}</span>
         </div>`;
       }
-      // no time strip if arrival unknown — dep time already shown in left gutter
 
       // Sub-line: carrier · ref
       const subParts = [s.carrier].filter(Boolean);
       const sub = subParts.join(' · ');
 
+      // Hotel-specific card content
+      const m = s.meta || {};
+      let hotelStrip = '';
+      if (isHotel) {
+        const ciDate  = (s.departs_at||'').slice(0,10);
+        const coDate  = (s.arrives_at||'').slice(0,10);
+        const ciTime  = depTime  ? ` at ${depTime}`  : (m.checkin_time  ? ` at ${m.checkin_time}`  : '');
+        const coTime  = (s.arrives_at||'').slice(11,16).replace('00:00','') 
+                          ? ` at ${(s.arrives_at||'').slice(11,16)}` 
+                          : (m.checkout_time ? ` at ${m.checkout_time}` : '');
+        const ciStr   = ciDate ? `${fmtShort(ciDate)}${ciTime}` : '—';
+        const coStr   = coDate ? `${fmtShort(coDate)}${coTime}` : '—';
+        const starsHtml = m.stars ? ' ' + '★'.repeat(Math.min(parseInt(m.stars)||0,5)) : '';
+        const phoneHtml = m.phone ? `<div class="hotel-phone">📞 ${m.phone}</div>` : '';
+        const addrHtml  = m.address ? `<div class="hotel-addr">📍 ${m.address}</div>` : '';
+        hotelStrip = `
+          <div class="hotel-dates">
+            <span class="hotel-ci"><span class="hotel-dt-lbl">Check-in</span> ${ciStr}</span>
+            <span class="hotel-arrow">→</span>
+            <span class="hotel-co"><span class="hotel-dt-lbl">Check-out</span> ${coStr}</span>
+          </div>
+          ${phoneHtml}${addrHtml}`;
+      }
+
       html += `<div class="seg" data-id="${s.id}">
-        <div class="seg-tc"><span class="seg-time">${depTime||'—'}</span><div class="seg-line"></div></div>
+        <div class="seg-tc"><span class="seg-time">${isHotel ? '' : (depTime||'—')}</span><div class="seg-line"></div></div>
         <div class="seg-card ${s.type}" onclick="toggleDetail(this)">
           <div class="seg-top">
             <span class="seg-icon">${TYPE_ICON[s.type]||'📌'}</span>
             <div class="seg-main">
-              <div class="seg-route">${routeHtml}${nights}</div>
-              ${timeStrip}
-              ${sub ? `<div class="seg-sub">${sub}</div>` : ''}
+              <div class="seg-route">${isHotel ? (s.carrier||orig) : routeHtml}${!isHotel ? nights : ''}</div>
+              ${isHotel ? hotelStrip : (timeStrip || '')}
+              ${!isHotel && sub ? `<div class="seg-sub">${sub}</div>` : ''}
+              ${isHotel && m.stars ? `<div class="seg-sub">${'★'.repeat(Math.min(parseInt(m.stars)||0,5))} ${m.nights ? m.nights+' nights' : ''}</div>` : ''}
             </div>
             <div class="seg-right">
               ${s.confirmation_ref ? `<div class="conf-ref">${s.confirmation_ref}</div>` : ''}
@@ -533,15 +842,10 @@ function renderTimeline() {
             </div>
           </div>
           <div class="seg-detail">
-            ${s.departs_tz ? `<div><div class="det-lbl">Dep timezone</div><div class="det-val">${s.departs_tz}</div></div>` : ''}
-            ${s.arrives_tz && s.arrives_tz !== s.departs_tz ? `<div><div class="det-lbl">Arr timezone</div><div class="det-val">${s.arrives_tz}</div></div>` : ''}
-            ${s.meta && s.meta.terminal_departure ? `<div><div class="det-lbl">Terminal (dep)</div><div class="det-val">${s.meta.terminal_departure}</div></div>` : ''}
-            ${s.meta && s.meta.terminal_arrival ? `<div><div class="det-lbl">Terminal (arr)</div><div class="det-val">${s.meta.terminal_arrival}</div></div>` : ''}
-            ${s.meta && s.meta.notes ? `<div><div class="det-lbl">Notes</div><div class="det-val">${s.meta.notes}</div></div>` : ''}
-            ${s.meta && s.meta.aviationstack_note && !s.meta.aviationstack_verified ? `<div style="grid-column:1/-1"><div class="det-lbl">✈ Flight data</div><div class="det-val" style="font-size:11px;color:var(--ink3)">${s.meta.aviationstack_note}</div></div>` : ''}
-            ${s.parse_status==='needs_review'||s.parse_status==='failed' ? `<div><div class="det-lbl">Status</div><div class="det-val warn">Needs manual review</div></div>` : ''}
+            ${detailFields(s)}
             <div style="grid-column:1/-1" class="seg-actions">
               <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditSeg('${s.id}')">Edit</button>
+              ${['train','hotel','flight'].includes(s.type) ? `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();enrichSeg('${s.id}',this)">⟳ Enrich</button>` : ''}
               <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteSeg('${s.id}')">Delete</button>
             </div>
           </div>
@@ -558,17 +862,128 @@ function renderTimeline() {
   tl.innerHTML = html;
 }
 
+function df(lbl, val) {
+  if (!val && val !== 0) return '';
+  return `<div><div class="det-lbl">${lbl}</div><div class="det-val">${val}</div></div>`;
+}
+
+function detailFields(s) {
+  const m = s.meta || {};
+  const type = s.type;
+  let out = '';
+
+  // ── FLIGHT ────────────────────────────────────────────
+  if (type === 'flight') {
+    if (m.enrich_status === 'needs_flight_number') {
+      out += `<div style="grid-column:1/-1;padding:6px 10px;background:#fef3e8;border-radius:6px;font-size:12px;color:#9a6000;border:1px solid #f5d5b0">
+        ✏️ ${m.enrich_reason || 'Add a flight number to enable enrichment'}
+      </div>`;
+    }
+    out += df('Cabin', m.cabin_class);
+    out += df('Fare', m.fare_type);
+    out += df('Terminal dep', m.terminal_departure || null);
+    out += df('Gate dep', m.gate || null);
+    out += df('Terminal arr', m.terminal_arrival || null);
+    out += df('Gate arr', m.gate_arrival || null);
+    out += df('Baggage claim', m.baggage_claim || null);
+    out += df('Boarding', m.boarding_time);
+    out += df('Seat', m.seat);
+    out += df('Baggage', m.baggage_allowance);
+    out += df('Ticket #', m.ticket_number);
+    if (m.delay_minutes > 0) out += df('Delay', `${m.delay_minutes} min`);
+    out += df('Dep timezone', s.departs_tz);
+    if (s.arrives_tz && s.arrives_tz !== s.departs_tz) out += df('Arr timezone', s.arrives_tz);
+    out += df('Price', m.price);
+    out += df('Card', m.payment_card);
+
+  }
+
+  // ── TRAIN ─────────────────────────────────────────────
+  if (type === 'train') {
+    out += df('Service', m.train_number);
+    out += df('Class', m.class);
+    out += df('Coach', m.coach);
+    out += df('Seat', m.seat);
+    out += df('Platform dep', m.platform_departure ? `Platform ${m.platform_departure}` : null);
+    out += df('Platform arr', m.platform_arrival ? `Platform ${m.platform_arrival}` : null);
+    out += df('Dep timezone', s.departs_tz);
+    if (s.arrives_tz && s.arrives_tz !== s.departs_tz) out += df('Arr timezone', s.arrives_tz);
+    out += df('Price', m.price);
+
+  }
+
+  // ── HOTEL ─────────────────────────────────────────────
+  if (type === 'hotel') {
+    out += df('Address', m.address);
+    out += df('Room', m.room_type);
+    out += df('Check-in', m.checkin_time);
+    out += df('Check-out', m.checkout_time);
+    out += df('Nights', m.nights);
+    out += df('Rate', m.rate_plan);
+    out += df('Points', m.loyalty_points);
+    out += df('Phone', m.phone ? `<a href="tel:${m.phone}" style="color:inherit">${m.phone}</a>` : null);
+    out += df('Website', m.website ? `<a href="${m.website}" target="_blank" style="color:var(--blue)">${m.website.replace(/^https?:\/\//,'').slice(0,40)}</a>` : null);
+    out += df('Stars', m.stars ? '★'.repeat(Math.min(parseInt(m.stars)||0,5)) : null);
+    out += df('Cancellation', m.cancellation_policy);
+    out += df('Price', m.price);
+    out += df('Card', m.payment_card);
+
+  }
+
+  // ── TAXI ──────────────────────────────────────────────
+  if (type === 'taxi') {
+    out += df('Driver', m.driver);
+    out += df('Phone', m.phone);
+    out += df('Dep timezone', s.departs_tz);
+    out += df('Price', m.price);
+    out += df('Confirmation', s.confirmation_ref);
+  }
+
+  // ── UNIVERSAL ─────────────────────────────────────────
+  if (m.notes) out += df('Notes', m.notes);
+  if (s.parse_status === 'needs_review' || s.parse_status === 'failed') {
+    out += `<div><div class="det-lbl">Status</div><div class="det-val warn">Needs manual review</div></div>`;
+  }
+  // aviationstack_note is a parse-time artifact — not shown in detail view
+  return out;
+}
+
 function toggleDetail(card) {
+  // Close all other open details first so two cards don't end up open simultaneously
+  document.querySelectorAll('.seg-detail.open').forEach(d => {
+    if (d.closest('.seg-card') !== card) d.classList.remove('open');
+  });
   card.querySelector('.seg-detail').classList.toggle('open');
 }
 
 function renderEmpty() {
-  document.getElementById('tripName').textContent = 'No trips yet';
+  document.getElementById('tripName').textContent = 'Waypoint';
   document.getElementById('tripMeta').textContent = '';
-  document.getElementById('timeline').innerHTML = `<div class="empty">
-    <div class="empty-title">Welcome to Waypoint</div>
-    <div class="empty-sub">Create your first trip to get started.</div>
-  </div>`;
+  document.getElementById('statusBar').style.display = 'none';
+  document.getElementById('timeline').innerHTML = `
+    <div style="margin-bottom:1.5rem">
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:12px">
+        No trips yet — plan one with the assistant, or
+        <button class="btn btn-ghost btn-sm" onclick="openNewTrip()" style="font-size:13px">create manually</button>
+      </div>
+      <div class="planner" id="plannerPanel">
+        <div class="planner-header">
+          <div>
+            <div class="planner-title">✦ Plan a trip</div>
+            <div class="planner-sub">Tell me where you want to go</div>
+          </div>
+        </div>
+        <div class="planner-thread" id="plannerThread">
+          <div class="planner-msg bot">Hi! Where would you like to go? Tell me the destination, dates, and I'll help build the whole itinerary.</div>
+        </div>
+        <div class="planner-input-row">
+          <input class="form-input" id="plannerInput" placeholder="e.g. Tokyo for 10 days in October, flying from Zurich…"
+            onkeydown="if(event.key==='Enter')plannerSend()" style="font-size:13px">
+          <button class="btn btn-primary" onclick="plannerSend()">Send</button>
+        </div>
+      </div>
+    </div>`;
+  initPlanner();
 }
 
 // ── DIALOG: NL BAR ───────────────────────────────────────────
@@ -587,10 +1002,11 @@ async function nlSubmit() {
 
   try {
     const body = {
-      trip_id: currentTrip.id,
-      message: text,
-      history: dlg.history,
-      draft:   dlg.draft,
+      trip_id:   currentTrip.id,
+      message:   text,
+      history:   dlg.history,
+      draft:     dlg.draft,
+      all_trips: buildTripContext(),
     };
     const r   = await fetch(`${API}/api/parse/dialog`, {method:'POST', headers:H, body:JSON.stringify(body)});
     if (!r.ok) throw new Error(await r.text());
@@ -600,13 +1016,30 @@ async function nlSubmit() {
     dlg.active  = true;
     dlg.history = res.history;
     dlg.draft   = res.draft;
-    dlg.avNote  = res.aviationstack_note || null;
+    dlg.avNote       = res.aviationstack_note || null;
+    dlg.ttNote       = res.timetable_note || null;
+    dlg.returnDraft  = res.return_draft || null;
+    dlg.returnAvNote = res.return_aviationstack_note || null;
 
     // Add user message to thread
     appendThread('user', text);
     input.value = '';
 
-    if (res.status === 'question') {
+    if (res.status === 'connection_search' && res.draft) {
+      // Connection search requested
+      activateDialog();
+      const fromSt = res.draft.origin || '';
+      const toSt   = res.draft.destination || '';
+      appendThread('bot', res.question || `Searching connections ${fromSt} → ${toSt}…`);
+      if (fromSt && toSt) {
+        const depDt = (res.draft.departs_at || '').slice(0,16).replace('T',' ');
+        const arrDt = (res.draft.arrives_at || '').slice(0,16).replace('T',' ');
+        await searchConnections(fromSt, toSt, {
+          datetime:      depDt || null,
+          arrive_before: arrDt || null,
+        });
+      }
+    } else if (res.status === 'question') {
       // GPT needs more info
       activateDialog();
       appendThread('bot', res.question);
@@ -614,7 +1047,7 @@ async function nlSubmit() {
       // Ready — show summary card for confirmation
       activateDialog();
       appendThread('bot', 'Got everything I need. Does this look right?');
-      renderSummary(res.draft, res.aviationstack_note);
+      renderSummary(res.draft, res.aviationstack_note, res.timetable_note);
     }
   } catch(e) {
     appendThread('bot', 'Something went wrong — please try again.');
@@ -633,7 +1066,7 @@ function activateDialog() {
 }
 
 function cancelDialog() {
-  dlg = {active:false, history:[], draft:null, avNote:null};
+  dlg = {active:false, history:[], draft:null, avNote:null, ttNote:null};
   document.getElementById('nlBar').classList.remove('dialog-active');
   document.getElementById('dialogThread').style.display = 'none';
   document.getElementById('dialogThread').innerHTML = '';
@@ -680,9 +1113,9 @@ function setNlLoading(on) {
 
 // ── SUMMARY CARD ─────────────────────────────────────────────
 
-const TYPE_ICON_MAP = {flight:'✈',hotel:'🏨',train:'🚂',car:'🚗',activity:'🎯',other:'📌'};
+const TYPE_ICON_MAP = {flight:'✈',hotel:'🏨',train:'🚂',taxi:'🚕',car:'🚗',activity:'🎯',other:'📌'};
 
-function renderSummary(draft, avNote) {
+function renderSummary(draft, avNote, ttNote) {
   const area = document.getElementById('summaryArea');
   const icon = TYPE_ICON_MAP[draft.type] || '📌';
 
@@ -712,12 +1145,18 @@ function renderSummary(draft, avNote) {
       <span>${avNote}</span>
     </div>` : '';
 
+  const ttHtml = ttNote ? `
+    <div class="av-note timetable-note ${ttNote.startsWith('⚠') ? 'tt-warn' : 'tt-ok'}">
+      <span>${ttNote}</span>
+    </div>` : '';
+
   area.innerHTML = `
     <div class="summary-card">
       <div class="summary-header">${icon} ${(draft.type||'').toUpperCase()} SUMMARY</div>
       <div class="summary-body">${fieldsHtml}</div>
     </div>
     ${avHtml}
+    ${ttHtml}
     <div class="summary-footer">
       <button class="btn btn-ghost btn-sm" onclick="cancelDialog()">Cancel</button>
       <button class="btn btn-ghost btn-sm" onclick="editSummary()">Edit</button>
@@ -739,6 +1178,7 @@ async function confirmSave() {
   try {
     const draft = {...dlg.draft};
     if (dlg.avNote) draft.aviationstack_note = dlg.avNote;
+    if (dlg.ttNote)  draft.timetable_note       = dlg.ttNote;
 
     const r = await fetch(`${API}/api/parse/dialog/confirm`, {
       method: 'POST', headers: H,
@@ -767,6 +1207,7 @@ const TYPE_PLACEHOLDERS = {
   flight:   {from:'ZRH or Zurich',to:'HRG or Hurghada',carrier:'Swiss LX 392',fromLbl:'From',toLbl:'To',carrierLbl:'Flight'},
   hotel:    {from:'City or address',to:'',carrier:'Hotel name',fromLbl:'Location',toLbl:'Check-out date',carrierLbl:'Property'},
   train:    {from:'Bern Hbf',to:'Zürich HB',carrier:'SBB IC 1',fromLbl:'From',toLbl:'To',carrierLbl:'Train'},
+  taxi:     {from:'Pickup address',to:'Dropoff address',carrier:'Driver or company name',fromLbl:'Pickup',toLbl:'Dropoff',carrierLbl:'Driver / Company'},
   car:      {from:'Pick-up',to:'Drop-off',carrier:'Hertz / Avis…',fromLbl:'Pick-up',toLbl:'Drop-off',carrierLbl:'Provider'},
   activity: {from:'Location',to:'',carrier:'Operator',fromLbl:'Location',toLbl:'',carrierLbl:'Activity name'},
   other:    {from:'',to:'',carrier:'',fromLbl:'From',toLbl:'To',carrierLbl:'Name'},
@@ -784,7 +1225,20 @@ function pickType(btn, type) {
   document.getElementById('lblFrom').textContent   = p.fromLbl;
   document.getElementById('lblTo').textContent     = p.toLbl;
   document.getElementById('lblCarrier').textContent= p.carrierLbl;
-  document.getElementById('arrRow').style.display  = ['flight','train'].includes(type) ? 'grid' : 'none';
+  const isHotelType  = type === 'hotel';
+  const isFlightType = type === 'flight';
+  document.getElementById('arrRow').style.display           = (isHotelType || ['flight','train'].includes(type)) ? 'grid' : 'none';
+  document.getElementById('taxiFields').style.display       = type === 'taxi'  ? 'block' : 'none';
+  document.getElementById('hotelFields').style.display      = type === 'hotel' ? 'block' : 'none';
+  document.getElementById('carrierRow').style.display       = isFlightType ? 'none' : '';
+  document.getElementById('flightCarrierRow').style.display = isFlightType ? 'grid' : 'none';
+  // Hotel: rename date/time labels
+  document.getElementById('lblDepDate').textContent = isHotelType ? 'Check-in date'  : 'Departure date';
+  document.getElementById('lblDepTime').textContent = isHotelType ? 'Check-in time'  : 'Departure time';
+  document.getElementById('lblArrDate').textContent = isHotelType ? 'Check-out date' : 'Arrival date';
+  document.getElementById('lblArrTime').textContent = isHotelType ? 'Check-out time' : 'Arrival time';
+  // Hotel: hide "To" field (not meaningful for hotels)
+  document.getElementById('fTo').closest('.form-row').style.display = isHotelType ? 'none' : '';
 }
 
 function openAddSeg() {
@@ -793,7 +1247,7 @@ function openAddSeg() {
   document.getElementById('segModalTitle').textContent = 'Add segment';
   document.getElementById('segSaveBtn').textContent    = 'Save segment';
   clearSegForm();
-  document.getElementById('fDepDate').value = currentTrip.start_date || '';
+  document.getElementById('fDepDate').value = isoToDisplay(currentTrip.start_date || '');
   document.getElementById('fDepTz').value   = 'Europe/Zurich';
   document.getElementById('segOverlay').classList.add('open');
   document.getElementById('fFrom').focus();
@@ -812,20 +1266,39 @@ function openEditSeg(id) {
   document.getElementById('fFrom').value    = seg.origin || '';
   document.getElementById('fTo').value      = seg.destination || '';
   document.getElementById('fCarrier').value = seg.carrier || '';
-  document.getElementById('fDepDate').value = (seg.departs_at||'').slice(0,10);
+  // For flights: split carrier "Swiss LX966" → airline + flight number
+  if (seg.type === 'flight') {
+    const cv = seg.carrier || '';
+    const fm = cv.match(/\b([A-Z]{2}\d{2,4})\b/);
+    document.getElementById('fFlightNum').value = fm ? fm[1] : ((seg.meta && seg.meta.flight_iata) || '');
+    document.getElementById('fAirline').value   = fm ? cv.replace(fm[1],'').trim() : cv;
+  }
+  document.getElementById('fDepDate').value = isoToDisplay((seg.departs_at||'').slice(0,10));
   document.getElementById('fDepTime').value = (seg.departs_at||'').slice(11,16);
-  document.getElementById('fArrDate').value = (seg.arrives_at||'').slice(0,10);
+  document.getElementById('fArrDate').value = isoToDisplay((seg.arrives_at||'').slice(0,10));
   document.getElementById('fArrTime').value = (seg.arrives_at||'').slice(11,16);
   document.getElementById('fDepTz').value   = seg.departs_tz || '';
   document.getElementById('fRef').value     = seg.confirmation_ref || '';
   document.getElementById('fNotes').value   = (seg.meta && seg.meta.notes) || '';
   document.getElementById('fConfirmed').checked = seg.confirmed;
+  if (seg.type === 'hotel' && seg.meta) {
+    document.getElementById('fHotelAddress').value = seg.meta.address  || '';
+    document.getElementById('fHotelPhone').value   = seg.meta.phone    || '';
+    document.getElementById('fHotelRoom').value    = seg.meta.room_type|| '';
+  }
   document.getElementById('segOverlay').classList.add('open');
 }
 
 function clearSegForm() {
-  ['fFrom','fTo','fCarrier','fDepDate','fDepTime','fArrDate','fArrTime','fDepTz','fRef','fNotes']
-    .forEach(id => document.getElementById(id).value = '');
+  ['fFrom','fTo','fCarrier','fAirline','fFlightNum','fDepDate','fDepTime','fArrDate','fArrTime','fDepTz','fRef','fNotes',
+   'fTaxiPhone','fTaxiDriver','fHotelAddress','fHotelPhone','fHotelRoom']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('taxiFields').style.display       = 'none';
+  document.getElementById('hotelFields').style.display      = 'none';
+  document.getElementById('carrierRow').style.display       = '';
+  document.getElementById('flightCarrierRow').style.display = 'none';
+  document.getElementById('editAssistPanel').style.display  = 'none';
+  document.getElementById('editAssistThread').innerHTML     = '';
   document.getElementById('fConfirmed').checked = false;
   pickType(document.querySelector('.type-btn'), 'flight');
 }
@@ -833,25 +1306,57 @@ function clearSegForm() {
 function closeSegModal() { document.getElementById('segOverlay').classList.remove('open'); }
 
 async function saveSeg() {
-  const depDate = document.getElementById('fDepDate').value;
-  const depTime = document.getElementById('fDepTime').value || '00:00';
+  const depDate = parseDate(document.getElementById('fDepDate').value);
+  const depTime = parseTime(document.getElementById('fDepTime').value) || '00:00';
   if (!depDate) { toast('Departure date is required'); return; }
-  const arrDate = document.getElementById('fArrDate').value;
-  const arrTime = document.getElementById('fArrTime').value || '00:00';
+  const arrDate = parseDate(document.getElementById('fArrDate').value);
+  const arrTime = parseTime(document.getElementById('fArrTime').value) || '00:00';
   const notes   = document.getElementById('fNotes').value.trim();
   const body = {
     trip_id:          currentTrip.id,
     type:             currentType,
     origin:           document.getElementById('fFrom').value.trim() || null,
     destination:      document.getElementById('fTo').value.trim() || null,
-    carrier:          document.getElementById('fCarrier').value.trim() || null,
+    carrier:          (() => {
+      if (currentType === 'flight') {
+        const al = document.getElementById('fAirline').value.trim();
+        const fn = document.getElementById('fFlightNum').value.trim().toUpperCase();
+        return (al && fn) ? `${al} ${fn}` : (al || fn || null);
+      }
+      return document.getElementById('fCarrier').value.trim() || null;
+    })(),
     departs_at:       `${depDate}T${depTime}:00`,
     departs_tz:       document.getElementById('fDepTz').value.trim() || null,
     arrives_at:       arrDate ? `${arrDate}T${arrTime}:00` : null,
     confirmation_ref: document.getElementById('fRef').value.trim() || null,
     confirmed:        document.getElementById('fConfirmed').checked,
     parse_status:     'ok',
-    meta:             notes ? {notes} : {},
+    meta:             (() => {
+      // Start from existing meta so enrichment data is preserved on edit
+      const existing = editingSegId
+        ? ((currentTrip.segments.find(s=>s.id===editingSegId)||{}).meta || {})
+        : {};
+      const m = Object.assign({}, existing);
+      if (notes) m.notes = notes; else delete m.notes;
+      if (currentType === 'taxi') {
+        const ph = document.getElementById('fTaxiPhone').value.trim();
+        const dr = document.getElementById('fTaxiDriver').value.trim();
+        if (ph) m.phone = ph; if (dr) m.driver = dr;
+      }
+      if (currentType === 'flight') {
+        const fn = document.getElementById('fFlightNum').value.trim().toUpperCase();
+        if (fn) m.flight_iata = fn;
+      }
+      if (currentType === 'hotel') {
+        const addr = document.getElementById('fHotelAddress').value.trim();
+        const ph   = document.getElementById('fHotelPhone').value.trim();
+        const room = document.getElementById('fHotelRoom').value.trim();
+        if (addr) m.address   = addr; else if (!addr && m.address) {} // keep existing
+        if (ph)   m.phone     = ph;
+        if (room) m.room_type = room;
+      }
+      return m;
+    })(),
   };
   const url    = editingSegId ? `${API}/api/segments/${editingSegId}` : `${API}/api/segments/`;
   const method = editingSegId ? 'PATCH' : 'POST';
@@ -882,8 +1387,8 @@ async function saveTrip() {
   if (!name) { toast('Trip name required'); return; }
   const body = {
     name,
-    start_date: document.getElementById('tStart').value || null,
-    end_date:   document.getElementById('tEnd').value || null,
+    start_date: parseDate(document.getElementById('tStart').value) || null,
+    end_date:   parseDate(document.getElementById('tEnd').value) || null,
   };
   const r    = await fetch(`${API}/api/trips/`, {method:'POST', headers:H, body:JSON.stringify(body)});
   const trip = await r.json();
@@ -896,13 +1401,82 @@ async function saveTrip() {
 // ── MODAL CLOSE ON OVERLAY CLICK ─────────────────────────────
 document.getElementById('segOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeSegModal(); });
 document.getElementById('tripOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeTripModal(); });
+document.getElementById('editTripOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeEditTripModal(); });
 
 // ── TIME INPUT AUTO-COLON ─────────────────────────────────────
+// Smart time parser: accepts 800, 8:00, 08.00, 8, 830 etc → HH:MM
+function parseTime(raw) {
+  if (!raw) return '';
+  const s = raw.trim().replace(/[.\s]/g, ':');
+  // Already has colon
+  if (s.includes(':')) {
+    const [h, m] = s.split(':').map(p => p.padStart(2,'0'));
+    const hh = parseInt(h), mm = parseInt(m)||0;
+    if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return raw;
+    return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+  }
+  // Pure digits
+  const d = s.replace(/\D/g,'');
+  if (d.length === 1 || d.length === 2) {
+    const hh = parseInt(d);
+    return `${String(hh).padStart(2,'0')}:00`;
+  }
+  if (d.length === 3) {
+    const hh = parseInt(d[0]), mm = parseInt(d.slice(1));
+    return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+  }
+  if (d.length >= 4) {
+    const hh = parseInt(d.slice(0,2)), mm = parseInt(d.slice(2,4));
+    return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+  }
+  return raw;
+}
+
+// Convert ISO YYYY-MM-DD → DD.MM.YYYY for display in form fields
+function isoToDisplay(iso) {
+  if (!iso) return '';
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+  return iso;
+}
+
+// Smart date parser: accepts DD.MM.YYYY, DD.MM.YY, DD/MM/YYYY → YYYY-MM-DD
+function parseDate(raw) {
+  if (!raw) return '';
+  const s = raw.trim();
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // DD.MM.YYYY or DD/MM/YYYY or DD-MM-YYYY
+  const m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})$/);
+  if (m) {
+    let [, dd, mm, yy] = m;
+    if (yy.length === 2) yy = '20' + yy;
+    return `${yy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+  }
+  return s;
+}
+
 ['fDepTime','fArrTime'].forEach(id => {
-  document.getElementById(id).addEventListener('input', e => {
-    let v = e.target.value.replace(/\D/g,'');
-    if (v.length >= 3) v = v.slice(0,2)+':'+v.slice(2,4);
-    e.target.value = v;
+  const el = document.getElementById(id);
+  // Live: insert colon after 2 digits while typing
+  el.addEventListener('input', e => {
+    const v = e.target.value;
+    const digits = v.replace(/\D/g,'');
+    if (digits.length === 4 && !v.includes(':')) {
+      e.target.value = digits.slice(0,2)+':'+digits.slice(2,4);
+    }
+  });
+  // On blur: normalise whatever was typed
+  el.addEventListener('blur', e => {
+    const parsed = parseTime(e.target.value);
+    if (parsed) e.target.value = parsed;
+  });
+});
+
+['fDepDate','fArrDate'].forEach(id => {
+  document.getElementById(id).addEventListener('blur', e => {
+    const parsed = parseDate(e.target.value);
+    if (parsed && parsed !== e.target.value) e.target.value = parsed;
   });
 });
 
@@ -968,6 +1542,681 @@ function flightDuration(dep_at,arr_at,dep_tz,arr_tz){
   if(mins<=0||mins>24*60)return null;
   const h=Math.floor(mins/60),m=mins%60;
   return h>0?(m>0?`${h}h ${m}m`:`${h}h`):`${m}m`;
+}
+
+// ── EDIT TRIP ─────────────────────────────────────────────
+function openEditTrip() {
+  if (!currentTrip) { toast('No trip selected'); return; }
+  document.getElementById('etName').value     = currentTrip.name || '';
+  document.getElementById('etLocation').value = currentTrip.location || '';
+  document.getElementById('etStart').value    = isoToDisplay(currentTrip.start_date || '');
+  document.getElementById('etEnd').value      = isoToDisplay(currentTrip.end_date || '');
+  document.getElementById('etCurrency').value = currentTrip.home_currency || 'CHF';
+  document.getElementById('etDesc').value     = currentTrip.description || '';
+  document.getElementById('editTripOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('etName').focus(), 50);
+}
+
+function closeEditTripModal() {
+  document.getElementById('editTripOverlay').classList.remove('open');
+}
+
+async function updateTrip() {
+  const name = document.getElementById('etName').value.trim();
+  if (!name) { toast('Trip name required'); return; }
+  const body = {
+    name,
+    location:     document.getElementById('etLocation').value.trim() || null,
+    start_date:   parseDate(document.getElementById('etStart').value) || null,
+    end_date:     parseDate(document.getElementById('etEnd').value) || null,
+    home_currency:document.getElementById('etCurrency').value.trim() || 'CHF',
+    description:  document.getElementById('etDesc').value.trim() || null,
+  };
+  const r = await fetch(`${API}/api/trips/${currentTrip.id}`, {
+    method:'PATCH', headers:H, body:JSON.stringify(body)
+  });
+  if (!r.ok) { toast('Error saving — check console'); console.error(await r.text()); return; }
+  closeEditTripModal();
+  await loadTrips();
+  await selectTrip(trips.find(t => t.id === currentTrip.id) || trips[0]);
+  toast('Trip updated ✓');
+}
+
+async function deleteTrip() {
+  if (!confirm(`Delete "${currentTrip.name}" and all its segments? This cannot be undone.`)) return;
+  await fetch(`${API}/api/trips/${currentTrip.id}`, {method:'DELETE', headers:H});
+  closeEditTripModal();
+  await loadTrips();
+  if (trips.length) selectTrip(trips[0]);
+  else renderEmpty();
+  toast('Trip deleted');
+}
+
+async function enrichSeg(id, btn) {
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⟳ Enriching…';
+  try {
+    const r = await fetch(`${API}/api/segments/${id}/enrich?token=${TOKEN}`, {method:'POST', headers:H});
+    if (!r.ok) throw new Error(await r.text());
+
+    // Re-fetch trip data without full re-render so open card state is preserved
+    const tr = await fetch(`${API}/api/trips/${currentTrip.id}`, {headers:H});
+    currentTrip = await tr.json();
+
+    // Update just the detail fields inside this card without closing it
+    const card = btn.closest('.seg-card');
+    if (card) {
+      const segData = currentTrip.segments.find(s => s.id === id);
+      if (segData) {
+        // Re-render only the detail grid content
+        const detail = card.querySelector('.seg-detail');
+        const wasOpen = detail && detail.classList.contains('open');
+        const actionsHtml = detail ? detail.querySelector('.seg-actions').outerHTML : '';
+        if (detail) {
+          detail.innerHTML = detailFields(segData) +
+            `<div style="grid-column:1/-1" class="seg-actions">
+              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditSeg('${id}')">Edit</button>
+              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();enrichSeg('${id}',this)">⟳ Enrich</button>
+              <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteSeg('${id}')">Delete</button>
+            </div>`;
+          // Re-query after innerHTML replacement (reference is now stale)
+          const freshDetail = card.querySelector('.seg-detail');
+          if (wasOpen && freshDetail) freshDetail.classList.add('open');
+        }
+        // Also refresh the hotel card header (dates, phone, stars etc)
+        const main = card.querySelector('.seg-main');
+        if (main && segData.type === 'hotel') {
+          const m = segData.meta || {};
+          const ciDate = (segData.departs_at||'').slice(0,10);
+          const coDate = (segData.arrives_at||'').slice(0,10);
+          const depTime = ciDate ? ((segData.departs_at||'').slice(11,16).replace('00:00','') || null) : null;
+          const coTime  = coDate ? ((segData.arrives_at||'').slice(11,16).replace('00:00','') || null) : null;
+          const ciStr = ciDate ? `${fmtShort(ciDate)}${depTime ? ' at '+depTime : (m.checkin_time ? ' at '+m.checkin_time : '')}` : '—';
+          const coStr = coDate ? `${fmtShort(coDate)}${coTime ? ' at '+coTime : (m.checkout_time ? ' at '+m.checkout_time : '')}` : '—';
+          const phoneHtml = m.phone   ? `<div class="hotel-phone">📞 ${m.phone}</div>` : '';
+          const addrHtml  = m.address ? `<div class="hotel-addr">📍 ${m.address}</div>`  : '';
+          const starsLbl  = m.stars   ? '★'.repeat(Math.min(parseInt(m.stars)||0,5)) : '';
+          const nightsLbl = m.nights  ? m.nights+' nights' : '';
+          main.querySelector('.seg-route').textContent = segData.carrier || segData.origin || '—';
+          let datesEl = main.querySelector('.hotel-dates');
+          if (!datesEl) {
+            datesEl = document.createElement('div');
+            main.insertBefore(datesEl, main.querySelector('.seg-sub') || null);
+          }
+          datesEl.className = 'hotel-dates';
+          datesEl.innerHTML = `<span class="hotel-ci"><span class="hotel-dt-lbl">Check-in</span> ${ciStr}</span><span class="hotel-arrow">→</span><span class="hotel-co"><span class="hotel-dt-lbl">Check-out</span> ${coStr}</span>`;
+          let phoneEl = main.querySelector('.hotel-phone');
+          let addrEl  = main.querySelector('.hotel-addr');
+          if (phoneHtml) { if (!phoneEl) { phoneEl = document.createElement('div'); main.appendChild(phoneEl); } phoneEl.outerHTML = phoneHtml; }
+          if (addrHtml)  { if (!addrEl)  { addrEl  = document.createElement('div'); main.appendChild(addrEl);  } addrEl.outerHTML  = addrHtml; }
+          const subEl = main.querySelector('.seg-sub');
+          if (subEl) subEl.textContent = [starsLbl, nightsLbl].filter(Boolean).join(' ');
+        }
+      }
+    }
+    toast('Enriched ✓');
+  } catch(e) {
+    toast('Enrich failed — check console');
+    console.error(e);
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
+
+
+
+
+// ── Edit segment assistant ───────────────────────────────────────────────────
+let _editAssistHistory = [];
+
+function toggleEditAssist() {
+  const panel = document.getElementById('editAssistPanel');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  if (open) {
+    _editAssistHistory = [];
+    document.getElementById('editAssistThread').innerHTML = '';
+    // Prime with a greeting that shows it knows the segment
+    const type    = currentType || 'segment';
+    const from    = document.getElementById('fFrom').value;
+    const to      = document.getElementById('fTo').value;
+    const airline = document.getElementById('fAirline')?.value || document.getElementById('fCarrier').value;
+    const flnum   = document.getElementById('fFlightNum')?.value || '';
+    const carrier = flnum ? `${airline} ${flnum}`.trim() : airline;
+    const greeting = type === 'flight'
+      ? `Hi! I can update this flight (${from}→${to}${carrier ? ', '+carrier : ''}). What would you like to change?`
+      : `Hi! I can update this ${type} segment. What would you like to change?`;
+    _editAssistAddMsg('bot', greeting);
+    document.getElementById('editAssistInput').focus();
+  }
+}
+
+function _editAssistAddMsg(role, text) {
+  const thread = document.getElementById('editAssistThread');
+  const el = document.createElement('div');
+  el.className = `edit-assist-msg ${role}`;
+  el.textContent = text;
+  thread.appendChild(el);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+async function editAssistSend() {
+  const input = document.getElementById('editAssistInput');
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  _editAssistAddMsg('user', text);
+
+  // Build current segment state from form
+  const type    = currentType || 'flight';
+  const from    = document.getElementById('fFrom').value;
+  const to      = document.getElementById('fTo').value;
+  const airline = document.getElementById('fAirline')?.value || '';
+  const flnum   = document.getElementById('fFlightNum')?.value || '';
+  const carrier = flnum ? `${airline} ${flnum}`.trim() : (document.getElementById('fCarrier').value || '');
+  const depDate = document.getElementById('fDepDate').value;
+  const depTime = document.getElementById('fDepTime').value;
+  const arrDate = document.getElementById('fArrDate').value;
+  const arrTime = document.getElementById('fArrTime').value;
+  const ref     = document.getElementById('fRef').value;
+  const notes   = document.getElementById('fNotes').value;
+
+  const segContext = {type, origin:from, destination:to, carrier,
+    departs_at: depDate&&depTime ? `${parseDate(depDate)}T${depTime}` : null,
+    arrives_at: arrDate&&arrTime ? `${parseDate(arrDate)}T${arrTime}` : null,
+    confirmation_ref: ref, notes};
+
+  _editAssistHistory.push({role:'user', content: text});
+
+  try {
+    const resp = await fetch(`${API}/api/parse/assist/edit?token=${TOKEN}`, {
+      method: 'POST',
+      headers: {...H, 'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        segment: segContext,
+        history: _editAssistHistory,
+        message: text,
+        trip_segments: currentTrip ? (currentTrip.segments || []).map(s => ({
+          type: s.type, origin: s.origin, destination: s.destination,
+          carrier: s.carrier, departs_at: s.departs_at, arrives_at: s.arrives_at,
+          id: s.id
+        })) : []
+      })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+
+    _editAssistAddMsg('bot', data.message || 'Done!');
+    _editAssistHistory.push({role:'user', content: text});
+    _editAssistHistory.push({role:'assistant', content: data.message});
+
+    // Apply updates to form fields
+    const u = data.updates || {};
+    if (u.origin)        document.getElementById('fFrom').value    = u.origin;
+    if (u.destination)   document.getElementById('fTo').value      = u.destination;
+    if (u.airline)     { const el = document.getElementById('fAirline');   if (el) el.value = u.airline; }
+    if (u.flight_number){ const el = document.getElementById('fFlightNum');if (el) el.value = u.flight_number.toUpperCase(); }
+    if (u.flight_iata) { const el = document.getElementById('fFlightNum');if (el) el.value = u.flight_iata.toUpperCase(); }
+    if (u.carrier && !u.airline) document.getElementById('fCarrier').value = u.carrier;
+    if (u.departs_date)    document.getElementById('fDepDate').value = u.departs_date;
+    if (u.departs_time)    document.getElementById('fDepTime').value = u.departs_time;
+    if (u.arrives_date)    document.getElementById('fArrDate').value = u.arrives_date;
+    if (u.arrives_time)    document.getElementById('fArrTime').value = u.arrives_time;
+    if (u.confirmation_ref) document.getElementById('fRef').value   = u.confirmation_ref;
+    if (u.notes != null)   document.getElementById('fNotes').value  = u.notes;
+    if (u.confirmed != null) document.getElementById('fConfirmed').checked = !!u.confirmed;
+  } catch(e) {
+    _editAssistAddMsg('bot', 'Something went wrong — please try again.');
+    console.error(e);
+  }
+}
+
+// ── Multi-trip helpers ───────────────────────────────────────────────────────
+
+function segDateWarning(seg) {
+  if (!currentTrip || !seg.departs_at) return '';
+  const sd = seg.departs_at.slice(0,10);
+  const ts = currentTrip.start_date, te = currentTrip.end_date;
+  if (ts && te && (sd < ts || sd > te)) {
+    // Find which trip this date actually belongs to
+    const match = trips.find(t => t.id !== currentTrip.id && t.start_date && t.end_date
+                              && sd >= t.start_date && sd <= t.end_date);
+    const hint = match ? ` Belongs to <b>${match.name}</b>?` : '';
+    return `<div style="grid-column:1/-1;padding:5px 9px;background:#fff8e6;border-radius:6px;
+      font-size:11px;color:#8a6200;border:1px solid #f0d080;margin-bottom:4px">
+      ⚠ Date ${fmtShort(sd)} is outside this trip's range (${fmtShort(ts)}–${fmtShort(te)}).${hint}
+    </div>`;
+  }
+  return '';
+}
+
+let _movingSegId = null;
+function openMoveSegModal(segId) {
+  _movingSegId = segId;
+  const list = document.getElementById('moveTripList');
+  list.innerHTML = '';
+  const seg = currentTrip.segments.find(s => s.id === segId);
+  const segDate = seg ? seg.departs_at.slice(0,10) : null;
+  trips.filter(t => t.id !== currentTrip.id).forEach(t => {
+    const inRange = segDate && t.start_date && t.end_date
+                    && segDate >= t.start_date && segDate <= t.end_date;
+    const el = document.createElement('button');
+    el.className = 'btn btn-ghost';
+    el.style.cssText = 'text-align:left;justify-content:flex-start;padding:10px 14px;' +
+      (inRange ? 'border-color:var(--green);color:var(--green)' : '');
+    el.innerHTML = `<div style="font-weight:500">${t.name}${inRange ? ' ✓' : ''}</div>` +
+      `<div style="font-size:11px;color:var(--ink3)">${fmt(t.start_date)} – ${fmt(t.end_date)}</div>`;
+    el.onclick = () => moveSeg(segId, t.id);
+    list.appendChild(el);
+  });
+  document.getElementById('moveSegOverlay').classList.add('open');
+}
+
+async function moveSeg(segId, targetTripId) {
+  document.getElementById('moveSegOverlay').classList.remove('open');
+  try {
+    const r = await fetch(`${API}/api/segments/${segId}?token=${TOKEN}`, {
+      method: 'PATCH',
+      headers: {...H, 'Content-Type':'application/json'},
+      body: JSON.stringify({trip_id: targetTripId})
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await selectTrip(currentTrip);
+    toast('Segment moved ✓');
+  } catch(e) {
+    toast('Move failed'); console.error(e);
+  }
+}
+
+// ── Pass all trips as context to chatbot ─────────────────────────────────────
+function buildTripContext() {
+  return trips.map(t => ({
+    id: t.id,
+    name: t.name,
+    start_date: t.start_date,
+    end_date: t.end_date,
+    isCurrent: t.id === currentTrip?.id
+  }));
+}
+
+// ── Calendar picker ──────────────────────────────────────────────────────────
+const _calState = {};
+
+function showCal(inputId, calId) {
+  hideCal(); // close any open
+  const el   = document.getElementById(calId);
+  const inp  = document.getElementById(inputId);
+  const val  = parseDate(inp.value);
+  const now  = val ? new Date(val + 'T12:00:00') : new Date();
+  _calState[calId] = { inputId, year: now.getFullYear(), month: now.getMonth(), sel: val };
+  renderCal(calId);
+  el.classList.add('open');
+  // Close on outside click
+  setTimeout(() => document.addEventListener('click', function _h(e) {
+    if (!el.contains(e.target) && e.target !== inp) { hideCal(calId); document.removeEventListener('click', _h); }
+  }), 10);
+}
+
+function hideCal(calId) {
+  if (calId) { document.getElementById(calId)?.classList.remove('open'); return; }
+  document.querySelectorAll('.cal-popup.open').forEach(el => el.classList.remove('open'));
+}
+
+function renderCal(calId) {
+  const s   = _calState[calId];
+  const el  = document.getElementById(calId);
+  const y   = s.year, m = s.month;
+  const today = new Date().toISOString().slice(0,10);
+  const monthName = new Date(y, m, 1).toLocaleString('en-GB', {month:'long', year:'numeric'});
+  const first = new Date(y, m, 1).getDay(); // 0=Sun
+  const startDow = (first + 6) % 7; // Mon=0
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+
+  let html = `<div class="cal-header">
+    <button class="cal-nav" onclick="calNav('${calId}',-1)">‹</button>
+    <span class="cal-month">${monthName}</span>
+    <button class="cal-nav" onclick="calNav('${calId}',1)">›</button>
+  </div><div class="cal-grid">`;
+  ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => html += `<div class="cal-dow">${d}</div>`);
+  for (let i=0; i<startDow; i++) html += `<div class="cal-day empty"></div>`;
+  for (let d=1; d<=daysInMonth; d++) {
+    const iso = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cls = [
+      'cal-day',
+      iso === today ? 'today' : '',
+      iso === s.sel ? 'sel' : '',
+    ].filter(Boolean).join(' ');
+    html += `<div class="${cls}" onclick="calPick('${calId}','${iso}')">${d}</div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function calNav(calId, delta) {
+  const s = _calState[calId];
+  s.month += delta;
+  if (s.month < 0)  { s.month = 11; s.year--; }
+  if (s.month > 11) { s.month = 0;  s.year++; }
+  renderCal(calId);
+}
+
+function calPick(calId, iso) {
+  const s = _calState[calId];
+  s.sel = iso;
+  document.getElementById(s.inputId).value = isoToDisplay(iso);
+  renderCal(calId);
+  setTimeout(() => hideCal(calId), 120);
+}
+
+// ── Trip assistant ────────────────────────────────────────────────────────────
+function _tripAssistMsg(role, text) {
+  const thread = document.getElementById('tripAssistThread');
+  const el = document.createElement('div');
+  el.className = `edit-assist-msg ${role}`;
+  el.textContent = text;
+  thread.appendChild(el);
+  thread.scrollTop = thread.scrollHeight;
+}
+
+async function tripAssistSend() {
+  const input = document.getElementById('tripAssistInput');
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  _tripAssistMsg('user', text);
+
+  try {
+    const r = await fetch(`${API}/api/parse/assist/trip?token=${TOKEN}`, {
+      method: 'POST',
+      headers: {...H, 'Content-Type': 'application/json'},
+      body: JSON.stringify({ message: text })
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    _tripAssistMsg('bot', d.message);
+    if (d.name)       document.getElementById('tName').value  = d.name;
+    if (d.start_date) document.getElementById('tStart').value = isoToDisplay(d.start_date);
+    if (d.end_date)   document.getElementById('tEnd').value   = isoToDisplay(d.end_date);
+  } catch(e) {
+    _tripAssistMsg('bot', 'Something went wrong.');
+    console.error(e);
+  }
+}
+
+// Clear trip assistant on modal open
+const _origOpenNewTrip = openNewTrip;
+openNewTrip = function() {
+  _origOpenNewTrip();
+  document.getElementById('tripAssistThread').innerHTML = '';
+  document.getElementById('tripAssistInput').value = '';
+};
+
+// ── TRIP PLANNER ─────────────────────────────────────────────────────────────
+let _plannerState = {history: [], trip_id: null, active: false};
+
+function initPlanner() {
+  _plannerState = {history: [], trip_id: null, active: true};
+}
+
+function openPlanner() {
+  // Show planner in main area even when trips exist
+  document.getElementById('tripName').textContent = 'Plan a trip';
+  document.getElementById('tripMeta').textContent = '';
+  document.getElementById('statusBar').style.display = 'none';
+  document.getElementById('timeline').innerHTML = `
+    <div class="planner" id="plannerPanel">
+      <div class="planner-header">
+        <div>
+          <div class="planner-title">✦ Plan a trip</div>
+          <div class="planner-sub">Tell me where you want to go</div>
+        </div>
+      </div>
+      <div class="planner-thread" id="plannerThread">
+        <div class="planner-msg bot">Hi! Where would you like to go? Tell me destination, dates, and I'll help build the whole itinerary.</div>
+      </div>
+      <div class="planner-input-row">
+        <input class="form-input" id="plannerInput" placeholder="e.g. Berlin 3–7 June, flying Swiss from Zurich…"
+          onkeydown="if(event.key==='Enter')plannerSend()" style="font-size:13px">
+        <button class="btn btn-primary" onclick="plannerSend()">Send</button>
+      </div>
+    </div>`;
+  initPlanner();
+  setTimeout(() => document.getElementById('plannerInput')?.focus(), 50);
+}
+
+function _plannerMsg(role, text) {
+  const thread = document.getElementById('plannerThread');
+  if (!thread) return;
+  const el = document.createElement('div');
+  el.className = `planner-msg ${role}`;
+  el.textContent = text;
+  thread.appendChild(el);
+  thread.scrollTop = thread.scrollHeight;
+  return el;
+}
+
+async function plannerSend() {
+  const input = document.getElementById('plannerInput');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.disabled = true;
+
+  _plannerMsg('user', text);
+  const thinking = _plannerMsg('thinking', 'Thinking…');
+
+  try {
+    const r = await fetch(`${API}/api/parse/plan?token=${TOKEN}`, {
+      method: 'POST',
+      headers: {...H, 'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        message: text,
+        history: _plannerState.history,
+        trip_id: _plannerState.trip_id,
+      })
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+
+    thinking?.remove();
+
+    // Update state
+    _plannerState.history  = d.history || [];
+    _plannerState.trip_id  = d.trip_id || _plannerState.trip_id;
+
+    // Show saved segments confirmation
+    if (d.summary) _plannerMsg('saved', '✓ ' + d.summary);
+    if (d.saved_segments?.length) {
+      d.saved_segments.forEach(s => {
+        const label = s.carrier
+          ? `${s.type}: ${s.origin}→${s.destination} (${s.carrier})`
+          : `${s.type}: ${s.origin}→${s.destination}`;
+        _plannerMsg('saved', '✓ Saved: ' + label);
+      });
+    }
+
+    // Show bot question
+    if (d.question) _plannerMsg('bot', d.question);
+
+    // If trip was created, refresh sidebar
+    if (d.trip_id) {
+      await loadTrips();
+      renderSidebar();
+    }
+
+    // If complete, show finish options
+    if (d.status === 'complete' && d.trip_id) {
+      _plannerMsg('bot', 'Your trip is ready! 🎉');
+      const thread = document.getElementById('plannerThread');
+      const doneDiv = document.createElement('div');
+      doneDiv.className = 'planner-done';
+      doneDiv.innerHTML = `
+        <span style="font-size:12px;color:var(--ink2);flex:1">Trip created with ${_plannerState.history.filter(h=>h.role==='user').length} turns</span>
+        <button class="btn btn-primary btn-sm" onclick="plannerFinish('${d.trip_id}')">View trip →</button>`;
+      thread.appendChild(doneDiv);
+      thread.scrollTop = thread.scrollHeight;
+      document.querySelector('.planner-input-row').style.display = 'none';
+    }
+
+  } catch(e) {
+    thinking?.remove();
+    _plannerMsg('bot', 'Something went wrong — please try again.');
+    console.error(e);
+  } finally {
+    if (input) input.disabled = false;
+    input?.focus();
+  }
+}
+
+async function plannerFinish(tripId) {
+  await loadTrips();
+  const trip = trips.find(t => t.id === tripId);
+  if (trip) selectTrip(trip);
+}
+
+// ── CONNECTION SEARCH ────────────────────────────────────────────────────────
+
+async function searchConnections(fromStation, toStation, options = {}) {
+  // options: {datetime, arrive_before, targetEl}
+  const targetEl = options.targetEl || document.getElementById('connResults');
+  if (!targetEl) return;
+
+  targetEl.style.display = 'block';
+  targetEl.innerHTML = `<div class="conn-panel">
+    <div class="conn-header">🔍 Searching connections…</div>
+  </div>`;
+
+  try {
+    const r = await fetch(`${API}/api/parse/connections/search?token=${TOKEN}`, {
+      method: 'POST',
+      headers: {...H, 'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        from_station: fromStation,
+        to_station: toStation,
+        datetime: options.datetime || null,
+        arrive_before: options.arrive_before || null,
+      })
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    renderConnectionResults(d, fromStation, toStation, targetEl);
+  } catch(e) {
+    targetEl.innerHTML = `<div class="conn-panel">
+      <div class="conn-header" style="color:var(--accent)">Connection search failed</div>
+      <div style="padding:10px 12px;font-size:12px;color:var(--ink3)">${e.message}</div>
+    </div>`;
+  }
+}
+
+function renderConnectionResults(d, fromStation, toStation, targetEl) {
+  const conns = d.connections || [];
+  const fb    = d.fallback;
+
+  let html = `<div class="conn-panel">
+    <div class="conn-header">
+      <span>🚂 ${fromStation} → ${toStation}</span>
+      <button onclick="this.closest('.conn-panel').parentElement.style.display='none'"
+        style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:14px">✕</button>
+    </div>`;
+
+  if (conns.length) {
+    conns.forEach((c, i) => {
+      const plat = c.platform_dep
+        ? `<span class="conn-plat">Pl. ${c.platform_dep}</span>` : '';
+      const xfer = c.transfers > 0
+        ? `${c.transfers} change${c.transfers>1?'s':''}` : 'Direct';
+      const dur  = (c.duration||'').replace('00d','').replace(':00','').trim();
+      html += `<div class="conn-item" onclick="addConnectionSeg(${JSON.stringify(c).replace(/"/g,'&quot;')})">
+        <div>
+          <div class="conn-time">${c.departs.slice(11,16)} <span class="conn-arrow">→</span> ${c.arrives.slice(11,16)}</div>
+          <div class="conn-meta">${c.carrier||'Train'} · ${xfer} · ${dur}</div>
+        </div>
+        ${plat}
+        <button class="conn-add" onclick="event.stopPropagation();addConnectionSeg(${JSON.stringify(c).replace(/"/g,'&quot;')})">+ Add</button>
+      </div>`;
+    });
+  }
+
+  if (fb) {
+    const suggestions = fb.suggestions || [];
+    if (suggestions.length) {
+      html += `<div class="conn-fallback">
+        <div style="font-size:11px;font-weight:600;color:var(--ink3);margin-bottom:6px">
+          ${conns.length ? 'Also try:' : 'No live results — alternatives:'}
+        </div>`;
+      suggestions.forEach(s => {
+        if (s.type === 'taxi') {
+          html += `<div class="conn-fallback-item">🚕 ${s.label}
+            <a href="${s.search_url}" target="_blank" class="conn-fallback-link">Open in Maps ↗</a>
+          </div>`;
+        } else {
+          html += `<div class="conn-fallback-item">🌐
+            <a href="${s.url}" target="_blank" class="conn-fallback-link">${s.label} ↗</a>
+            <span style="color:var(--ink4)">${s.note}</span>
+          </div>`;
+        }
+      });
+      html += '</div>';
+    }
+  }
+
+  if (!conns.length && !fb?.suggestions?.length) {
+    html += `<div style="padding:12px;font-size:12px;color:var(--ink3)">No connections found for this route.</div>`;
+  }
+
+  html += '</div>';
+  targetEl.innerHTML = html;
+}
+
+async function addConnectionSeg(conn) {
+  if (!currentTrip) { toast('Select a trip first'); return; }
+  // Build segment from connection result
+  const depDate = conn.departs.slice(0,10);
+  const depTime = conn.departs.slice(11,16);
+  const arrDate = conn.arrives.slice(0,10);
+  const arrTime = conn.arrives.slice(11,16);
+
+  const body = {
+    trip_id:     currentTrip.id,
+    type:        'train',
+    origin:      conn.from_name,
+    destination: conn.to_name,
+    carrier:     conn.carrier || null,
+    departs_at:  `${depDate}T${depTime}`,
+    arrives_at:  `${arrDate}T${arrTime}`,
+    confirmed:   false,
+    meta: {
+      platform_departure: conn.platform_dep || null,
+      platform_arrival:   conn.platform_arr || null,
+      source: 'connection-search',
+    }
+  };
+
+  try {
+    const r = await fetch(`${API}/api/segments/?token=${TOKEN}`, {
+      method: 'POST',
+      headers: {...H, 'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error(await r.text());
+    await selectTrip(currentTrip);
+    toast(`Added: ${conn.carrier||'Train'} ${depTime}→${arrTime} ✓`);
+    // Hide conn panel
+    document.getElementById('connResults').style.display = 'none';
+  } catch(e) {
+    toast('Failed to add segment'); console.error(e);
+  }
+}
+
+// Detect connection search intent in NL bar
+function detectConnectionSearch(text) {
+  const lower = text.toLowerCase();
+  const keywords = ['connection', 'train from', 'get from', 'how to get', 'travel from',
+                    'connection from', 'find a train', 'next train', 'trains from'];
+  return keywords.some(k => lower.includes(k));
 }
 
 boot();

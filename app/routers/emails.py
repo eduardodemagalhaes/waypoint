@@ -12,76 +12,139 @@ router = APIRouter(prefix="/api/emails", tags=["emails"])
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 SYSTEM = """Extract ALL travel segments from this booking confirmation email.
-Return a JSON array of segments. Each segment:
+You MUST return a JSON object with a single key "segments" whose value is an array.
+Each element represents one travel segment with this structure:
 {
   "type": "flight|hotel|train|car|activity|other",
   "origin": "city or IATA code",
   "destination": "city or IATA code or null",
   "carrier": "airline/hotel/operator name and number",
-  "flight_iata": "e.g. LX392 or null",
+  "flight_iata": "IATA flight code only e.g. BA0579 or null",
   "departs_at": "YYYY-MM-DDTHH:MM:00",
   "departs_tz": "IANA timezone",
   "arrives_at": "YYYY-MM-DDTHH:MM:00 or null",
   "arrives_tz": "IANA timezone or null",
   "confirmation_ref": "booking ref or null",
   "confirmed": true,
-  "meta": {"notes": ""}
+  "meta": {
+    "notes": "any extra info not captured elsewhere",
+    "cabin_class": "Economy/Premium Economy/Business/First or null",
+    "seat": "seat number e.g. 14A or null",
+    "boarding_time": "HH:MM or null",
+    "terminal_departure": "terminal at departure airport or null",
+    "terminal_arrival": "terminal at arrival airport or null",
+    "gate": "gate number or null",
+    "baggage_allowance": "e.g. 1 bag 23kg or null",
+    "fare_type": "e.g. World Traveller Plus or null",
+    "ticket_number": "e-ticket number or null",
+    "platform_departure": "platform number at departure station or null",
+    "platform_arrival": "platform number at arrival station or null",
+    "train_number": "e.g. EC 37 or null",
+    "coach": "coach/carriage number or null",
+    "class": "1st or 2nd or null",
+    "address": "full street address for hotels or null",
+    "phone": "hotel phone or null",
+    "checkin_time": "HH:MM local e.g. 15:00 or null",
+    "checkout_time": "HH:MM local e.g. 12:00 or null",
+    "room_type": "e.g. 1 Queen Studio Suite or null",
+    "nights": "number of nights or null",
+    "rate_plan": "e.g. Reward Nights or null",
+    "loyalty_points": "e.g. 50000 Points or null",
+    "cancellation_policy": "brief summary or null",
+    "price": "total price with currency e.g. CHF 2306.00 or null",
+    "payment_card": "last 4 digits only e.g. **** 3679 or null"
+  }
 }
 Rules:
-- Extract every segment (outbound + return flights, hotel check-in, transfers)
-- Set confirmed=true for all (it is a booking confirmation)
+- Extract EVERY segment — all flights each leg separately, each train leg separately, hotel check-in, transfers
+- A 4-flight itinerary MUST produce 4 segment objects. A 2-leg train MUST produce 2 segment objects.
+- For hotels: departs_at = check-in datetime, arrives_at = check-out datetime
+- Set confirmed=true for all
 - Infer IANA timezone from city/airport
 - Use the year from the email; if missing use 2026
-- Return [] if no travel data found
-- Return ONLY the JSON array, no other text
+- Only set meta fields where data is present in the email — use null otherwise
+- Return {"segments": []} if no travel data found
 """
 
 
-def find_best_trip(db: Session, segments: list[dict]) -> Optional[Trip]:
+def find_best_trip(db, segments):
     """
-    Match segments to the most relevant upcoming trip by date proximity.
-    Falls back to the soonest upcoming trip.
+    Find the best trip for a set of segments based on date overlap.
+    Priority: exact date range match > same month > closest upcoming > most recent.
     """
-    trips = db.query(Trip).all()
+    trips = db.query(Trip).order_by(Trip.start_date).all()
     if not trips:
         return None
+    if len(trips) == 1:
+        return trips[0]
 
-    # Try to find a trip whose date range overlaps with any segment date
-    seg_dates = []
-    for s in segments:
-        d = (s.get("departs_at") or "")[:10]
-        if d:
-            seg_dates.append(d)
+    seg_dates = sorted([(s.get("departs_at") or "")[:10]
+                        for s in segments if (s.get("departs_at") or "")[:10]])
+    if not seg_dates:
+        from datetime import date
+        today = str(date.today())
+        upcoming = [t for t in trips if (t.start_date or "") >= today]
+        return min(upcoming, key=lambda t: t.start_date) if upcoming else trips[-1]
 
-    if seg_dates:
-        first_date = min(seg_dates)
-        for trip in sorted(trips, key=lambda t: t.start_date or ""):
-            if trip.start_date and trip.end_date:
-                if trip.start_date <= first_date <= trip.end_date:
-                    return trip
-            if trip.start_date and abs(
-                (first_date[:7] == (trip.start_date or "")[:7])
-            ):
-                return trip  # same month
+    first_date = seg_dates[0]
 
-    # Fallback: soonest upcoming trip
-    from datetime import date
-    today = str(date.today())
-    upcoming = [t for t in trips if (t.start_date or "") >= today]
-    if upcoming:
-        return min(upcoming, key=lambda t: t.start_date)
-    return trips[0]
+    # 1. Exact overlap: first segment date falls within trip range
+    for trip in trips:
+        if trip.start_date and trip.end_date:
+            if trip.start_date <= first_date <= trip.end_date:
+                return trip
+
+    # 2. Partial overlap: any segment date within any trip
+    all_dates = set(seg_dates)
+    for trip in trips:
+        if trip.start_date and trip.end_date:
+            if any(trip.start_date <= d <= trip.end_date for d in all_dates):
+                return trip
+
+    # 3. Same month as trip start
+    for trip in trips:
+        if trip.start_date and first_date[:7] == trip.start_date[:7]:
+            return trip
+
+    # 4. Closest trip by proximity to first segment date
+    def proximity(t):
+        if t.start_date:
+            return abs((
+                __import__('datetime').date.fromisoformat(first_date) -
+                __import__('datetime').date.fromisoformat(t.start_date)
+            ).days)
+        return 9999
+
+    return min(trips, key=proximity)
 
 
-# ── Pydantic models ──────────────────────────────────────────────────────────
+def call_gpt(subject, body_text):
+    r = client.chat.completions.create(
+        model="gpt-4o", temperature=0,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": SYSTEM},
+            {"role": "user", "content": f"Subject: {subject}\n\n{body_text}"},
+        ],
+    )
+    parsed = json.loads(r.choices[0].message.content)
+    if isinstance(parsed, list):
+        segments_data = parsed
+    elif "segments" in parsed:
+        segments_data = parsed["segments"]
+    elif "type" in parsed:
+        segments_data = [parsed]
+    else:
+        segments_data = next((v for v in parsed.values() if isinstance(v, list)), [])
+    return normalise_segments(segments_data)
+
 
 class IngestRequest(BaseModel):
     message_id: str
     from_address: str
     subject: str
     body_text: str
-    trip_id: Optional[str] = None    # override auto-detection
-
+    trip_id: Optional[str] = None
 
 class IngestResponse(BaseModel):
     ok: bool
@@ -91,144 +154,101 @@ class IngestResponse(BaseModel):
     parse_status: str = "ok"
     error: Optional[str] = None
 
+class ReparseRequest(BaseModel):
+    raw_email_id: str
+    trip_id: Optional[str] = None
 
-# ── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/ingest", response_model=IngestResponse)
 def ingest_email(body: IngestRequest, db: Session = Depends(get_db)):
-    """
-    Receive a parsed email (from the Postfix pipe script),
-    extract travel segments via GPT-4o, and save them.
-    """
-    # Deduplicate by message_id
-    existing = db.query(RawEmail).filter(
-        RawEmail.message_id == body.message_id
-    ).first()
+    existing = db.query(RawEmail).filter(RawEmail.message_id == body.message_id).first()
     if existing:
-        return IngestResponse(
-            ok=True, message_id=body.message_id,
-            parse_status="duplicate",
-            error="Already processed"
-        )
-
-    # Store the raw email
-    raw = RawEmail(
-        message_id=body.message_id,
-        from_address=body.from_address,
-        subject=body.subject,
-        body_text=body.body_text,
-        parse_status="processing",
-    )
-    db.add(raw)
-    db.flush()
-
-    # Call GPT-4o
+        return IngestResponse(ok=True, message_id=body.message_id, parse_status="duplicate", error="Already processed")
+    raw = RawEmail(message_id=body.message_id, from_address=body.from_address,
+                   subject=body.subject, body_text=body.body_text, parse_status="processing")
+    db.add(raw); db.flush()
     try:
-        r = client.chat.completions.create(
-            model="gpt-4o",
-            temperature=0,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": SYSTEM},
-                {"role": "user", "content": f"Subject: {body.subject}\n\n{body.body_text}"},
-            ],
-        )
-        raw_content = r.choices[0].message.content
-        # GPT returns {"segments": [...]} or directly [...] — handle both
-        parsed = json.loads(raw_content)
-        if isinstance(parsed, list):
-            segments_data = parsed
-        elif "segments" in parsed:
-            segments_data = parsed["segments"]
-        elif "type" in parsed:
-            segments_data = [parsed]  # single segment object
-        else:
-            # try any list value
-            segments_data = next((v for v in parsed.values() if isinstance(v,list)),[])
-        # normalise whatever schema GPT returned
-        segments_data = normalise_segments(segments_data)
+        segments_data = call_gpt(body.subject, body.body_text)
     except Exception as e:
-        raw.parse_status = "failed"
-        db.commit()
-        return IngestResponse(
-            ok=False, message_id=body.message_id,
-            parse_status="failed", error=str(e)
-        )
-
+        raw.parse_status = "failed"; db.commit()
+        return IngestResponse(ok=False, message_id=body.message_id, parse_status="failed", error=str(e))
     if not segments_data:
-        raw.parse_status = "no_segments"
-        db.commit()
-        return IngestResponse(
-            ok=True, message_id=body.message_id,
-            parse_status="no_segments", segments_created=0
-        )
-
-    # Find the right trip
+        raw.parse_status = "no_segments"; db.commit()
+        return IngestResponse(ok=True, message_id=body.message_id, parse_status="no_segments", segments_created=0)
     trip_id = body.trip_id
     if not trip_id:
         trip = find_best_trip(db, segments_data)
         trip_id = trip.id if trip else None
-
     if not trip_id:
-        raw.parse_status = "failed"
-        db.commit()
-        return IngestResponse(
-            ok=False, message_id=body.message_id,
-            parse_status="failed", error="No trip found to assign segments to"
-        )
-
+        raw.parse_status = "failed"; db.commit()
+        return IngestResponse(ok=False, message_id=body.message_id, parse_status="failed", error="No trip found")
     raw.trip_id = trip_id
-
-    # Create segments
     cols = Segment.__table__.columns.keys()
     created = 0
     for seg_data in segments_data:
-        seg = Segment(
-            trip_id=trip_id,
-            raw_email_id=raw.id,
-            parse_status="ok",
-            **{k: v for k, v in seg_data.items() if k in cols},
-        )
-        seg.meta = seg_data.get("meta", {})
-        seg.meta["source"] = "email"
-        db.add(seg)
-        created += 1
+        seg = Segment(trip_id=trip_id, raw_email_id=raw.id, parse_status="ok",
+                      **{k: v for k, v in seg_data.items() if k in cols})
+        seg.meta = seg_data.get("meta", {}); seg.meta["source"] = "email"
+        db.add(seg); created += 1
+    raw.parse_status = "ok"; db.commit()
+    return IngestResponse(ok=True, message_id=body.message_id, trip_id=trip_id, segments_created=created)
 
-    raw.parse_status = "ok"
-    db.commit()
 
-    return IngestResponse(
-        ok=True,
-        message_id=body.message_id,
-        trip_id=trip_id,
-        segments_created=created,
-        parse_status="ok",
-    )
+@router.post("/reparse", response_model=IngestResponse)
+def reparse_email(body: ReparseRequest, db: Session = Depends(get_db)):
+    raw = db.query(RawEmail).filter(RawEmail.id == body.raw_email_id).first()
+    if not raw:
+        raise HTTPException(404, "Raw email not found")
+    db.query(Segment).filter(Segment.raw_email_id == raw.id).delete(); db.flush()
+    try:
+        segments_data = call_gpt(raw.subject or "", raw.body_text or "")
+    except Exception as e:
+        raw.parse_status = "failed"; db.commit()
+        return IngestResponse(ok=False, message_id=raw.message_id, parse_status="failed", error=str(e))
+    if not segments_data:
+        raw.parse_status = "no_segments"; db.commit()
+        return IngestResponse(ok=True, message_id=raw.message_id, parse_status="no_segments", segments_created=0)
+    trip_id = body.trip_id or raw.trip_id
+    if not trip_id:
+        trip = find_best_trip(db, segments_data)
+        trip_id = trip.id if trip else None
+    if not trip_id:
+        raw.parse_status = "failed"; db.commit()
+        return IngestResponse(ok=False, message_id=raw.message_id, parse_status="failed", error="No trip found")
+    raw.trip_id = trip_id
+    cols = Segment.__table__.columns.keys()
+    created = 0
+    for seg_data in segments_data:
+        seg = Segment(trip_id=trip_id, raw_email_id=raw.id, parse_status="ok",
+                      **{k: v for k, v in seg_data.items() if k in cols})
+        seg.meta = seg_data.get("meta", {}); seg.meta["source"] = "email"
+        db.add(seg); created += 1
+    raw.parse_status = "ok"; db.commit()
+    return IngestResponse(ok=True, message_id=raw.message_id, trip_id=trip_id, segments_created=created)
 
 
 @router.get("/review")
 def get_review_emails(db: Session = Depends(get_db)):
-    """Return emails that failed or need review."""
-    emails = db.query(RawEmail).filter(
+    return db.query(RawEmail).filter(
         RawEmail.parse_status.in_(["failed", "needs_review", "no_segments"])
-    ).order_by(RawEmail.created_at.desc()).limit(50).all()
-    return emails
+    ).order_by(RawEmail.received_at.desc()).limit(50).all()
+
 
 def _last(s): return s.strip().split()[-1] if s and s.strip() else None
 def _dt(s): return s if s and "T" in str(s) else (s if s else None)
 
 def normalise_segments(raw):
-    out=[]
+    out = []
     for s in raw:
-        n={"type":s.get("type","flight"),"confirmed":True,"meta":s.get("meta",{"notes":""})}
-        n["origin"]=s.get("origin") or _last(s.get("departure_airport",""))
-        n["destination"]=s.get("destination") or _last(s.get("arrival_airport",""))
-        n["carrier"]=s.get("carrier") or s.get("airline") or s.get("flight_number")
-        n["flight_iata"]=s.get("flight_iata") or s.get("flight_number")
-        n["departs_at"]=_dt(s.get("departs_at") or s.get("departure_time"))
-        n["departs_tz"]=s.get("departs_tz") or s.get("departure_timezone")
-        n["arrives_at"]=_dt(s.get("arrives_at") or s.get("arrival_time"))
-        n["arrives_tz"]=s.get("arrives_tz") or s.get("arrival_timezone")
-        n["confirmation_ref"]=s.get("confirmation_ref") or s.get("reference") or s.get("booking_ref")
+        n = {"type": s.get("type", "flight"), "confirmed": True, "meta": s.get("meta", {"notes": ""})}
+        n["origin"] = s.get("origin") or _last(s.get("departure_airport", ""))
+        n["destination"] = s.get("destination") or _last(s.get("arrival_airport", ""))
+        n["carrier"] = s.get("carrier") or s.get("airline") or s.get("flight_number")
+        n["flight_iata"] = s.get("flight_iata") or s.get("flight_number")
+        n["departs_at"] = _dt(s.get("departs_at") or s.get("departure_time"))
+        n["departs_tz"] = s.get("departs_tz") or s.get("departure_timezone")
+        n["arrives_at"] = _dt(s.get("arrives_at") or s.get("arrival_time"))
+        n["arrives_tz"] = s.get("arrives_tz") or s.get("arrival_timezone")
+        n["confirmation_ref"] = s.get("confirmation_ref") or s.get("reference") or s.get("booking_ref")
         out.append(n)
     return out

@@ -37,12 +37,19 @@ class TripBase(BaseModel):
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     home_currency: str = "CHF"
+    location: Optional[str] = None
+    description: Optional[str] = None
 
 class TripCreate(TripBase):
     pass
 
-class TripUpdate(TripBase):
-    pass
+class TripUpdate(BaseModel):
+    name: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    home_currency: Optional[str] = None
+    location: Optional[str] = None
+    description: Optional[str] = None
 
 class TripOut(TripBase):
     model_config = ConfigDict(from_attributes=True)

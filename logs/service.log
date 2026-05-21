@@ -1,0 +1,22 @@
+INFO:     Started server process [41761]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:51386 - "GET /api/trips/ HTTP/1.0" 200 OK
+INFO:     127.0.0.1:51394 - "GET /api/trips/58bdccea-369e-4bbf-8861-d62c3be70bca HTTP/1.0" 200 OK
+INFO:     127.0.0.1:50770 - "DELETE /api/segments/81a3a9bb-6930-4419-9d23-e3d053fad6f4 HTTP/1.0" 204 No Content
+INFO:     127.0.0.1:50780 - "GET /api/trips/58bdccea-369e-4bbf-8861-d62c3be70bca HTTP/1.0" 200 OK
+INFO:     127.0.0.1:40576 - "POST /api/parse/dialog HTTP/1.0" 200 OK
+INFO:     127.0.0.1:40362 - "POST /api/parse/dialog HTTP/1.0" 200 OK
+INFO:     127.0.0.1:54382 - "POST /api/parse/dialog/confirm HTTP/1.0" 201 Created
+INFO:     127.0.0.1:54390 - "GET /api/trips/58bdccea-369e-4bbf-8861-d62c3be70bca HTTP/1.0" 200 OK
+INFO:     127.0.0.1:41268 - "POST /api/segments/a88b686e-5127-4b11-8d6c-fd97c257de67/enrich?token=d5f9e9b215da795ef927a399c3eba355 HTTP/1.0" 200 OK
+INFO:     127.0.0.1:41274 - "GET /api/trips/58bdccea-369e-4bbf-8861-d62c3be70bca HTTP/1.0" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [41761]
+INFO:     Started server process [98368]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
