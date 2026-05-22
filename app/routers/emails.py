@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
 from app.routers.auth import _email_template
+from app.routers.deps import get_current_user
 from app.models.models import RawEmail, Segment, Trip
 from app.schemas.schemas import SegmentOut
 import os, json, re, smtplib
@@ -492,3 +493,110 @@ def normalise_segments(raw):
         n["confirmation_ref"] = s.get("confirmation_ref") or s.get("reference") or s.get("booking_ref")
         out.append(n)
     return out
+
+# ── PDF upload endpoint ───────────────────────────────────────────────────────
+
+from fastapi import UploadFile, File
+import io as _io
+
+@router.post("/upload-pdf")
+async def upload_pdf(
+    file: UploadFile = File(...),
+    trip_id: str = None,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Accept a PDF upload, extract text with pdfplumber, run through the
+    ingest pipeline and return the same IngestResponse shape.
+    """
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(400, "Only PDF files are accepted")
+
+    pdf_bytes = await file.read()
+    if len(pdf_bytes) > 10 * 1024 * 1024:  # 10 MB limit
+        raise HTTPException(413, "PDF too large — maximum 10 MB")
+
+    # ── Extract text ─────────────────────────────────────────────────────────
+    try:
+        import pdfplumber
+        with pdfplumber.open(_io.BytesIO(pdf_bytes)) as pdf:
+            pages = [p.extract_text() for p in pdf.pages if p.extract_text()]
+        pdf_text = "\n\n".join(pages)
+    except Exception as e:
+        raise HTTPException(422, f"Could not read PDF: {e}")
+
+    if not pdf_text.strip():
+        return IngestResponse(
+            ok=False, message_id=f"pdf-{file.filename}",
+            parse_status="no_segments", segments_created=0,
+            error="No readable text found in PDF — it may be scanned or image-only",
+        )
+
+    # Truncate to stay within GPT context
+    if len(pdf_text) > 12000:
+        pdf_text = pdf_text[:12000] + "\n[truncated]"
+
+    # ── Resolve user and find/validate trip ──────────────────────────────────
+    import uuid as _uuid
+    message_id = f"pdf-upload-{_uuid.uuid4().hex[:12]}"
+
+    # Validate trip ownership if provided
+    if trip_id:
+        trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == user["id"]).first()
+        if not trip:
+            raise HTTPException(404, "Trip not found")
+    else:
+        trip = None
+
+    # ── Parse via GPT ────────────────────────────────────────────────────────
+    raw = RawEmail(
+        message_id=message_id,
+        from_address=user["email"],
+        subject=f"PDF upload: {file.filename}",
+        body_text=pdf_text,
+        parse_status="processing",
+    )
+    db.add(raw); db.flush()
+
+    try:
+        segments_data = call_gpt(f"PDF: {file.filename}", pdf_text)
+    except Exception as e:
+        raw.parse_status = "failed"; db.commit()
+        return IngestResponse(ok=False, message_id=message_id, parse_status="failed", error=str(e))
+
+    if not segments_data:
+        raw.parse_status = "no_segments"; db.commit()
+        return IngestResponse(ok=True, message_id=message_id, parse_status="no_segments", segments_created=0)
+
+    # ── Find or match trip ────────────────────────────────────────────────────
+    if not trip_id:
+        trip = find_best_trip(db, segments_data, user_id=user["id"])
+        trip_id = trip.id if trip else None
+
+    if not trip_id:
+        raw.parse_status = "failed"; db.commit()
+        return IngestResponse(ok=False, message_id=message_id, parse_status="failed",
+                              error="Could not match PDF to a trip — create a trip first")
+
+    raw.trip_id = trip_id
+    cols = Segment.__table__.columns.keys()
+    created = 0
+    for seg_data in segments_data:
+        seg = Segment(trip_id=trip_id, raw_email_id=raw.id, parse_status="ok",
+                      **{k: v for k, v in seg_data.items() if k in cols})
+        seg.meta = seg_data.get("meta", {}); seg.meta["source"] = "pdf_upload"
+        db.add(seg); created += 1
+
+    raw.parse_status = "ok"; db.commit()
+
+    trip_obj = db.query(Trip).filter(Trip.id == trip_id).first()
+    send_ingest_reply(
+        to=user["email"],
+        status="ok",
+        subject=f"PDF upload: {file.filename}",
+        segments_data=segments_data,
+        trip_name=trip_obj.name if trip_obj else None,
+    )
+
+    return IngestResponse(ok=True, message_id=message_id, trip_id=trip_id, segments_created=created)

@@ -293,6 +293,18 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .empty-sub{font-size:13px;color:var(--ink3);line-height:1.7}
 .loading{text-align:center;padding:3rem;color:var(--ink3);font-size:13px;font-style:italic}
 
+/* ── PDF Upload ── */
+.pdf-drop-zone{border:2px dashed var(--paper3);border-radius:10px;padding:28px 20px;
+  text-align:center;cursor:pointer;transition:all .2s;margin-bottom:1.5rem;
+  background:var(--paper)}
+.pdf-drop-zone:hover,.pdf-drop-zone.drag-over{border-color:var(--accent);background:var(--paper2)}
+.pdf-drop-zone.uploading{border-color:var(--ink4);opacity:.7;pointer-events:none}
+.pdf-drop-icon{font-size:28px;margin-bottom:8px}
+.pdf-drop-title{font-family:var(--serif);font-size:16px;color:var(--ink);margin-bottom:4px}
+.pdf-drop-sub{font-size:12px;color:var(--ink3);line-height:1.5}
+.pdf-progress{margin-top:10px;font-size:12px;color:var(--ink3);font-style:italic}
+#pdfFileInput{display:none}
+
 /* ── MODAL ── */
 .overlay{display:none;position:fixed;inset:0;background:rgba(26,24,20,.55);
   z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
@@ -471,9 +483,11 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   </div>
   <div class="hdr-right" id="hdrUser">
     <button class="btn btn-ghost btn-sm" onclick="openEditTrip()" id="editTripBtn">Edit trip</button>
+    <button class="btn btn-ghost btn-sm" onclick="triggerPdfUpload()" id="pdfUploadBtn" title="Upload PDF booking confirmation">📄 Upload PDF</button>
     <button class="btn btn-primary btn-sm" onclick="openAddSeg()">+ Add segment</button>
   </div>
 </header>
+<input type="file" id="pdfFileInput" accept=".pdf,application/pdf" onchange="handlePdfFile(this.files[0])">
 <div class="mob-overlay" id="mobOverlay" onclick="toggleSidebar()"></div>
 <button id="mobFab" onclick="openAddSeg()">＋ Add segment</button>
 
@@ -485,6 +499,18 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 </nav>
 
 <main class="main">
+
+  <!-- PDF DROP ZONE -->
+  <div id="pdfDropZone" class="pdf-drop-zone" style="display:none"
+       onclick="triggerPdfUpload()"
+       ondragover="event.preventDefault();this.classList.add('drag-over')"
+       ondragleave="this.classList.remove('drag-over')"
+       ondrop="event.preventDefault();this.classList.remove('drag-over');handlePdfFile(event.dataTransfer.files[0])">
+    <div class="pdf-drop-icon">📄</div>
+    <div class="pdf-drop-title">Upload PDF booking confirmation</div>
+    <div class="pdf-drop-sub">Drop a PDF here or click to browse — boarding passes, hotel vouchers, rail tickets</div>
+    <div class="pdf-progress" id="pdfProgress"></div>
+  </div>
 
   <!-- TRIP BAR -->
   <div class="trip-bar" id="tripBar">
@@ -812,6 +838,9 @@ async function boot() {
   renderUserPill();
   if (window.innerWidth <= 700) document.getElementById('mobMenuBtn').style.display = 'inline-flex';
   if (window.innerWidth <= 700) document.getElementById('mobFab').style.display = 'flex';
+  // PDF upload btn always visible
+  const pdfBtn = document.getElementById('pdfUploadBtn');
+  if (pdfBtn) pdfBtn.style.display = 'inline-flex';
   await loadTrips();
   if (Array.isArray(trips) && trips.length) selectTrip(trips[0]);
   else renderEmpty();
@@ -1025,6 +1054,53 @@ function appendStuckCard(message) {
   thread.scrollTop = thread.scrollHeight;
 }
 
+
+// ── PDF Upload ────────────────────────────────────────────────────────────────
+function triggerPdfUpload() {
+  if (!currentTrip) { toast('Select a trip first'); return; }
+  document.getElementById('pdfFileInput').click();
+}
+
+async function handlePdfFile(file) {
+  if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.pdf')) { toast('Please select a PDF file'); return; }
+  if (!currentTrip) { toast('Select a trip first'); return; }
+
+  const zone   = document.getElementById('pdfDropZone');
+  const prog   = document.getElementById('pdfProgress');
+  zone.classList.add('uploading');
+  prog.textContent = `Parsing ${file.name}…`;
+
+  try {
+    const form = new FormData();
+    form.append('file', file);
+
+    const url = `${API}/api/emails/upload-pdf?trip_id=${encodeURIComponent(currentTrip.id)}`;
+    const r = await fetch(url, { method: 'POST', credentials: 'include', body: form });
+    const res = await r.json();
+
+    if (!r.ok) throw new Error(res.detail || 'Upload failed');
+
+    if (res.parse_status === 'no_segments') {
+      toast('No travel details found in that PDF — try forwarding the email instead');
+    } else if (res.parse_status === 'failed') {
+      toast('Could not process PDF: ' + (res.error || 'unknown error'));
+    } else if (res.segments_created > 0) {
+      toast(`✓ Added ${res.segments_created} segment${res.segments_created > 1 ? 's' : ''} from PDF`);
+      await loadTrips();
+      const updated = trips.find(t => t.id === currentTrip.id);
+      if (updated) selectTrip(updated);
+    }
+  } catch(e) {
+    toast('PDF upload failed [ERR13]: ' + e.message);
+    console.error('[ERR13]', e);
+  } finally {
+    zone.classList.remove('uploading');
+    prog.textContent = '';
+    document.getElementById('pdfFileInput').value = '';
+  }
+}
+
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('mob-open');
   document.getElementById('mobOverlay').classList.toggle('open');
@@ -1037,6 +1113,8 @@ function closeSidebar() {
 async function selectTrip(trip) {
   if (!trip) return;
   if (window.innerWidth <= 700) closeSidebar();
+  const dz = document.getElementById('pdfDropZone');
+  if (dz) dz.style.display = 'block';
   cancelDialog();
   currentTrip = trip;
   document.getElementById('tripName').textContent = trip.name;
@@ -1288,6 +1366,9 @@ function toggleDetail(card) {
 }
 
 function renderEmpty() {
+  const dz = document.getElementById('pdfDropZone');
+  if (dz) dz.style.display = 'none';
+
   document.getElementById('tripName').textContent = 'Waypoint';
   document.getElementById('tripMeta').textContent = '';
   document.getElementById('statusBar').style.display = 'none';
