@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os, subprocess
 
 from app.database import Base, engine
-from app.routers import trips, segments, emails, parse, lookup, enrich, auth
+from app.routers import trips, segments, emails, parse, lookup, enrich, auth, calendar
 
 Base.metadata.create_all(bind=engine)
 
@@ -15,6 +15,15 @@ def _run_migrations():
         cols = [c["name"] for c in inspect(engine).get_columns("users")] if inspect(engine).has_table("users") else []
         if "is_disabled" not in cols and cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN is_disabled INTEGER NOT NULL DEFAULT 0"))
+            conn.commit()
+        if "calendar_token" not in cols and cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN calendar_token TEXT"))
+            conn.commit()
+    # trips table migrations
+    trip_cols = [c["name"] for c in inspect(engine).get_columns("trips")] if inspect(engine).has_table("trips") else []
+    if "calendar_token" not in trip_cols and trip_cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE trips ADD COLUMN calendar_token TEXT"))
             conn.commit()
 
 _run_migrations()
@@ -52,6 +61,10 @@ async def auth_middleware(request: Request, call_next):
     if path.startswith("/api/auth"):
         return await call_next(request)
 
+    # Calendar ICS feeds — public (token-secured at handler level)
+    if path.endswith(".ics") or path.endswith("/calendar-token"):
+        return await call_next(request)
+
     from fastapi.responses import JSONResponse
 
     # Check session cookie first
@@ -73,6 +86,7 @@ app.include_router(parse.router)
 app.include_router(lookup.router)
 app.include_router(enrich.router)
 app.include_router(auth.router)
+app.include_router(calendar.router)
 
 @app.get("/health")
 def health():

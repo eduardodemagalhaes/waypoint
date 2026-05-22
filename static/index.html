@@ -293,6 +293,27 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .empty-sub{font-size:13px;color:var(--ink3);line-height:1.7}
 .loading{text-align:center;padding:3rem;color:var(--ink3);font-size:13px;font-style:italic}
 
+/* ── Calendar subscription ── */
+.cal-modal-section{margin-bottom:20px}
+.cal-modal-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--ink3);font-weight:500;margin-bottom:8px;display:block}
+.cal-url-row{display:flex;gap:6px;align-items:center}
+.cal-url-box{flex:1;font-family:var(--mono);font-size:11px;padding:7px 9px;
+  border:1px solid var(--paper3);border-radius:6px;background:var(--paper2);
+  color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  cursor:text;user-select:all}
+.cal-copy-btn{flex-shrink:0;font-family:var(--sans);font-size:11px;font-weight:500;
+  padding:6px 10px;border-radius:6px;border:1px solid var(--paper3);
+  background:var(--paper);color:var(--ink2);cursor:pointer;white-space:nowrap;
+  transition:all .15s}
+.cal-copy-btn:hover{background:var(--paper3);color:var(--ink)}
+.cal-webcal-btn{flex-shrink:0;font-size:11px;font-weight:500;
+  padding:6px 10px;border-radius:6px;border:1px solid var(--paper3);
+  background:var(--paper);color:var(--blue);cursor:pointer;white-space:nowrap;
+  text-decoration:none;display:inline-block;transition:all .15s}
+.cal-webcal-btn:hover{background:#e8f0fb}
+.cal-hint{font-size:11px;color:var(--ink3);line-height:1.6;margin-top:8px}
+
 /* ── PDF Upload ── */
 .pdf-drop-zone{border:2px dashed var(--paper3);border-radius:10px;padding:28px 20px;
   text-align:center;cursor:pointer;transition:all .2s;margin-bottom:1.5rem;
@@ -518,6 +539,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
       <span class="trip-name" id="tripName">—</span>
     </div>
     <span class="trip-meta" id="tripMeta"></span>
+    <button class="btn btn-ghost btn-sm" id="calBtn" onclick="openCalendarModal()" title="Subscribe to calendar" style="display:none;font-size:13px">📅</button>
   </div>
 
   <!-- NL / DIALOG BAR -->
@@ -744,6 +766,40 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 </div>
 
 <!-- ══════════ DATE GUARDRAIL MODAL ══════════ -->
+<div class="overlay" id="calendarOverlay">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">📅 Subscribe to calendar</div>
+    <div id="calModalBody">
+      <div class="cal-modal-section">
+        <span class="cal-modal-label">This trip</span>
+        <div class="cal-url-row">
+          <div class="cal-url-box" id="calTripUrl">Loading…</div>
+          <button class="cal-copy-btn" onclick="copyCalUrl('calTripUrl')">Copy</button>
+          <a class="cal-webcal-btn" id="calTripWebcal" href="#" target="_blank">Open</a>
+        </div>
+        <div class="cal-hint">Subscribes your calendar app to this trip only — updates automatically.</div>
+      </div>
+      <div class="cal-modal-section">
+        <span class="cal-modal-label">All my trips</span>
+        <div class="cal-url-row">
+          <div class="cal-url-box" id="calUserUrl">Loading…</div>
+          <button class="cal-copy-btn" onclick="copyCalUrl('calUserUrl')">Copy</button>
+          <a class="cal-webcal-btn" id="calUserWebcal" href="#" target="_blank">Open</a>
+        </div>
+        <div class="cal-hint">One feed for every trip in your account — past and upcoming.</div>
+      </div>
+      <div class="cal-hint" style="margin-top:4px;padding-top:14px;border-top:1px solid var(--paper3)">
+        <strong>How to subscribe:</strong> Click <em>Open</em> to add directly in Apple Calendar or Outlook.
+        In Google Calendar: Other calendars → + → From URL → paste the link.
+        Waypoint will refresh the feed every hour.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeCalendarModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="guardrailOverlay">
 <div class="modal" style="max-width:400px">
   <div class="modal-title">⚠ Date outside trip range</div>
@@ -1101,6 +1157,38 @@ async function handlePdfFile(file) {
   }
 }
 
+
+// ── Calendar subscription ─────────────────────────────────────────────────────
+async function openCalendarModal() {
+  if (!currentTrip) return;
+  document.getElementById('calendarOverlay').classList.add('open');
+  document.getElementById('calTripUrl').textContent = 'Loading…';
+  document.getElementById('calUserUrl').textContent = 'Loading…';
+
+  try {
+    const r = await fetch(`${API}/api/trips/${currentTrip.id}/calendar-token`, {credentials:'include'});
+    if (!r.ok) throw new Error('Failed to load calendar URLs');
+    const d = await r.json();
+
+    document.getElementById('calTripUrl').textContent = d.trip_ics_url;
+    document.getElementById('calUserUrl').textContent = d.user_ics_url;
+    document.getElementById('calTripWebcal').href = d.trip_webcal;
+    document.getElementById('calUserWebcal').href = d.user_webcal;
+  } catch(e) {
+    document.getElementById('calTripUrl').textContent = 'Error loading URL';
+    document.getElementById('calUserUrl').textContent = 'Error loading URL';
+  }
+}
+
+function closeCalendarModal() {
+  document.getElementById('calendarOverlay').classList.remove('open');
+}
+
+function copyCalUrl(elId) {
+  const url = document.getElementById(elId).textContent;
+  navigator.clipboard.writeText(url).then(() => toast('URL copied to clipboard'));
+}
+
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('mob-open');
   document.getElementById('mobOverlay').classList.toggle('open');
@@ -1115,6 +1203,8 @@ async function selectTrip(trip) {
   if (window.innerWidth <= 700) closeSidebar();
   const dz = document.getElementById('pdfDropZone');
   if (dz) dz.style.display = 'block';
+  const cb = document.getElementById('calBtn');
+  if (cb) cb.style.display = 'inline-flex';
   cancelDialog();
   currentTrip = trip;
   document.getElementById('tripName').textContent = trip.name;
@@ -1402,7 +1492,7 @@ function renderEmpty() {
 
 function handleNlKey(e) {
   if (e.key === 'Enter') nlSubmit();
-  if (e.key === 'Escape') cancelDialog();
+  if (e.key === 'Escape') { cancelDialog(); closeCalendarModal(); }
 }
 
 async function sendDialogTurn(text, {showInThread=true, bypassGuardrails=false}={}) {
