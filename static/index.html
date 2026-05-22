@@ -63,11 +63,103 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .sidebar-new:hover{background:var(--paper3)}
 .main{flex:1;min-width:0;padding:2rem 1.5rem;max-width:760px}
 @media(max-width:700px){
+  /* ── Sidebar ── */
   .sidebar{display:none}
   .sidebar.mob-open{display:block;position:fixed;left:0;top:49px;z-index:90;
-    height:calc(100vh - 49px);box-shadow:4px 0 16px rgba(0,0,0,.1)}
+    width:80vw;max-width:280px;height:calc(100vh - 49px);
+    box-shadow:4px 0 24px rgba(0,0,0,.18);overflow-y:auto}
   .mob-overlay{display:none;position:fixed;inset:0;top:49px;background:rgba(0,0,0,.3);z-index:89}
   .mob-overlay.open{display:block}
+
+  /* ── Header ── */
+  .hdr{padding:0 10px}
+  .hdr-right{gap:6px}
+  #editTripBtn{display:none}          /* moved to seg area on mobile */
+  #mobMenuBtn{display:inline-flex !important}
+
+  /* ── Main content ── */
+  .main{padding:1rem 0.85rem 5rem; /* 5rem bottom = space for FAB */}
+  .trip-bar{margin-bottom:1rem;flex-wrap:wrap;gap:4px}
+  .trip-name{font-size:21px}
+  .trip-meta{font-size:11px}
+
+  /* ── Segment timeline column ── */
+  .seg-tc{padding-top:10px}
+  .seg-time{font-size:10px}
+
+  /* ── Segment cards ── */
+  .seg-card{padding:10px 10px 10px 14px}
+  .seg-route{font-size:14px}
+  .seg-sub{font-size:11px}
+  .seg-right{gap:2px}
+  .conf-ref{font-size:9px}
+
+  /* ── Segment detail: 2-col on mobile instead of 3 ── */
+  .seg-detail{grid-template-columns:repeat(2,1fr);gap:6px}
+
+  /* ── Segment actions: bigger tap targets ── */
+  .seg-actions{gap:8px;flex-wrap:wrap}
+  .seg-actions .btn{padding:8px 14px;font-size:13px}
+
+  /* ── Hotel address ── */
+  .hotel-addr{max-width:100%}
+
+  /* ── Modals: slide up from bottom on mobile ── */
+  .overlay{align-items:flex-end;padding:0}
+  .modal{border-radius:16px 16px 0 0;max-width:100%;max-height:92vh;
+    padding:20px 16px 32px;animation:slideUpMob .25s ease both}
+  .modal::before{content:'';display:block;width:36px;height:4px;
+    background:var(--paper3);border-radius:2px;margin:0 auto 16px}
+  @keyframes slideUpMob{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .modal-title{font-size:18px;margin-bottom:14px}
+
+  /* ── Type picker: 3 cols on mobile ── */
+  .type-picker{grid-template-columns:repeat(3,1fr)}
+  .type-btn{padding:10px 4px}
+  .type-btn-icon{font-size:20px}
+
+  /* ── Form grid: single column ── */
+  .form-grid{grid-template-columns:1fr}
+  .form-input{font-size:16px} /* prevent iOS zoom on focus */
+
+  /* ── Edit assist dialog in modal ── */
+  .edit-assist-msg{font-size:13px}
+
+  /* ── Trip dropdown ── */
+  .trip-dd{min-width:90vw;max-width:90vw}
+
+  /* ── Connection search panel ── */
+  .conn-results{max-width:100%;overflow-x:auto}
+
+  /* ── Planner panel ── */
+  .planner-wrap{max-width:100%}
+  .planner-msg{font-size:14px}
+
+  /* ── Dialog (trip assistant) ── */
+  .dialog-msg{font-size:14px;max-width:98%}
+
+  /* ── Summary fields in seg detail ── */
+  .sum-field{min-width:0;width:100%}
+  .seg-detail .det-val{font-size:12px}
+  .seg-detail .det-lbl{font-size:9px}
+}
+
+/* ── Mobile FAB (floating + Add segment button) ── */
+#mobFab{
+  display:none;
+  position:fixed;bottom:20px;right:16px;z-index:150;
+  background:var(--ink);color:var(--paper);
+  border:none;border-radius:28px;
+  padding:13px 20px;font-family:var(--sans);font-size:14px;font-weight:600;
+  box-shadow:0 4px 16px rgba(0,0,0,.22);cursor:pointer;
+  align-items:center;gap:8px;
+  transition:transform .15s,box-shadow .15s;
+}
+#mobFab:active{transform:scale(.96);box-shadow:0 2px 8px rgba(0,0,0,.18)}
+@media(max-width:700px){
+  #mobFab{display:flex}
+  /* hide the header + Add segment on mobile (FAB replaces it) */
+  .hdr-right .btn-primary{display:none}
 }
 
 /* ── TRIP BAR ── */
@@ -376,6 +468,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   </div>
 </header>
 <div class="mob-overlay" id="mobOverlay" onclick="toggleSidebar()"></div>
+<button id="mobFab" onclick="openAddSeg()">＋ Add segment</button>
 
 <div class="app">
 <nav class="sidebar" id="sidebar">
@@ -711,6 +804,7 @@ async function boot() {
   hideAuthScreen();
   renderUserPill();
   if (window.innerWidth <= 700) document.getElementById('mobMenuBtn').style.display = 'inline-flex';
+  if (window.innerWidth <= 700) document.getElementById('mobFab').style.display = 'flex';
   await loadTrips();
   if (Array.isArray(trips) && trips.length) selectTrip(trips[0]);
   else renderEmpty();
@@ -918,6 +1012,7 @@ function closeSidebar() {
 
 async function selectTrip(trip) {
   if (!trip) return;
+  if (window.innerWidth <= 700) closeSidebar();
   cancelDialog();
   currentTrip = trip;
   document.getElementById('tripName').textContent = trip.name;
