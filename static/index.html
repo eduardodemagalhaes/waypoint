@@ -324,6 +324,13 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .trip-modal{max-width:380px}
 
 .edit-assist-msg{font-size:12px;line-height:1.5;padding:6px 10px;border-radius:8px;max-width:95%}
+.stuck-card{background:var(--paper2);border:1px solid var(--paper3);border-left:3px solid var(--accent);border-radius:8px;padding:12px 14px;margin:8px 0;font-size:13px;color:var(--ink2);line-height:1.6}
+.stuck-card p{margin:0 0 10px}
+.stuck-actions{display:flex;gap:8px;flex-wrap:wrap}
+.stuck-btn{font-family:var(--sans);font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;border:1px solid var(--paper3);background:var(--paper);color:var(--ink2);cursor:pointer;text-decoration:none;display:inline-block;transition:all .15s}
+.stuck-btn:hover{background:var(--paper3);color:var(--ink)}
+.stuck-btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.stuck-btn.primary:hover{background:var(--ink2)}
 .edit-assist-msg.bot{background:var(--paper3);color:var(--ink2);align-self:flex-start}
 .edit-assist-msg.user{background:var(--ink);color:var(--paper);align-self:flex-end}
 
@@ -1001,6 +1008,23 @@ function sidebarSelect(tripId) {
 function toggleDD() {} // legacy no-op
 function renderTripDD() { renderSidebar(); }
 
+function appendStuckCard(message) {
+  const thread = document.getElementById('nlThread');
+  if (!thread) return;
+  const msg = message || "I\'m not sure I can help with this. It might be outside my current capabilities, or there could be a bug.";
+  const card = document.createElement('div');
+  card.className = 'stuck-card';
+  card.innerHTML = `
+    <p>${msg}</p>
+    <div class="stuck-actions">
+      <a class="stuck-btn primary" href="mailto:waypoint@emdm.ch?subject=Bug+report&body=What+I+tried+to+do:%0A%0AWhat+happened:%0A%0ABrowser:" target="_blank">🐛 Report a bug</a>
+      <a class="stuck-btn" href="mailto:waypoint@emdm.ch?subject=Feature+request&body=What+I'd+like+Waypoint+to+do:" target="_blank">✦ Request a feature</a>
+      <button class="stuck-btn" onclick="cancelDialog()">Start over</button>
+    </div>`;
+  thread.appendChild(card);
+  thread.scrollTop = thread.scrollHeight;
+}
+
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('mob-open');
   document.getElementById('mobOverlay').classList.toggle('open');
@@ -1342,6 +1366,9 @@ async function sendDialogTurn(text, {showInThread=true, bypassGuardrails=false}=
       activateDialog();
       const gh = res.guardrail_hit || {};
       appendGuardrailInline(gh.message || 'This segment is outside the trip boundaries.', gh.options || [], gh.meta || {});
+    } else if (res.status === 'stuck') {
+      activateDialog();
+      appendStuckCard(res.question);
     } else if (res.status === 'question') {
       activateDialog();
       appendThread('bot', res.question);
@@ -2172,7 +2199,15 @@ async function editAssistSend() {
     if (!resp.ok) throw new Error(await resp.text());
     const data = await resp.json();
 
-    _editAssistAddMsg('bot', data.message || 'Done!');
+    if (data.status === 'stuck') {
+      const stuckMsg = data.message || "I'm not sure I can help with this edit. Would you like to report it?";
+      const stuckEl = document.createElement('div');
+      stuckEl.className = 'stuck-card';
+      stuckEl.innerHTML = `<p>${stuckMsg}</p><div class="stuck-actions"><a class="stuck-btn primary" href="mailto:waypoint@emdm.ch?subject=Bug+report" target="_blank">🐛 Report a bug</a><a class="stuck-btn" href="mailto:waypoint@emdm.ch?subject=Feature+request" target="_blank">✦ Request a feature</a></div>`;
+      document.querySelector('#editAssistThread')?.appendChild(stuckEl);
+    } else {
+      _editAssistAddMsg('bot', data.message || 'Done!');
+    }
     _editAssistHistory.push({role:'user', content: text});
     _editAssistHistory.push({role:'assistant', content: data.message});
 
@@ -2359,7 +2394,15 @@ async function tripAssistSend() {
     });
     if (!r.ok) throw new Error(await r.text());
     const d = await r.json();
-    _tripAssistMsg('bot', d.message);
+    if (d.status === 'stuck') {
+      const tc = document.getElementById('tripAssistThread');
+      if (tc) {
+        const sc = document.createElement('div'); sc.className='stuck-card';
+        sc.innerHTML=`<p>${d.message||'I got stuck on this one.'}</p><div class="stuck-actions"><a class="stuck-btn primary" href="mailto:waypoint@emdm.ch?subject=Bug+report" target="_blank">🐛 Report a bug</a><a class="stuck-btn" href="mailto:waypoint@emdm.ch?subject=Feature+request" target="_blank">✦ Request a feature</a></div>`; tc.appendChild(sc); tc.scrollTop=tc.scrollHeight;
+      }
+    } else {
+      _tripAssistMsg('bot', d.message);
+    }
     if (d.name)       document.getElementById('tName').value  = d.name;
     if (d.start_date) document.getElementById('tStart').value = isoToDisplay(d.start_date);
     if (d.end_date)   document.getElementById('tEnd').value   = isoToDisplay(d.end_date);

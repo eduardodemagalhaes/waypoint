@@ -68,6 +68,11 @@ RETURN FLIGHT: When status=ready for a flight, always populate return_draft:
 
 Set status=ready as soon as entry is complete. Do not ask for optional details.
 
+WHEN YOU ARE STUCK: If after several exchanges you still cannot understand what the user wants,
+or the request is outside your capabilities (not a travel segment, ambiguous beyond resolution,
+or the user seems frustrated), return status="stuck" with a short, honest explanation in "question".
+Do not keep asking the same things in circles. Better to admit you're stuck and let the user report it.
+
 Fields needed — do NOT set status=ready until ALL are known:
 - flight: origin, destination, departs_at, carrier, flight_iata (REQUIRED — always ask if missing)
   carrier MUST be "Airline FlightNumber" e.g. "Swiss LX1392" — never just the airline name alone.
@@ -297,6 +302,18 @@ async def parse_dialog(body: DialogRequest, db: Session = Depends(get_db), user:
     av_note=None
     return_draft=gpt.get('return_draft')
     return_av_note=None
+
+    # ── Stuck detection: ≥5 question turns → nudge user to report ───────────
+    question_turns = sum(1 for m in new_history if m.role == "assistant" and
+                         '"status": "question"' in m.content)
+    if question_turns >= 5 and status == "question":
+        status = "stuck"
+        gpt["question"] = (
+            "I\'ve asked a few times and I\'m still not sure I understand what you need. "
+            "This might be something I can\'t handle yet — or a bug. "
+            "Would you like to report it so we can improve Waypoint?"
+        )
+
     if status=='ready' and draft.get('type')=='flight' and draft.get('flight_iata'):
         draft,_,av_note=enrich_with_aviationstack(draft)
     if status=='ready' and return_draft and return_draft.get('flight_iata'):
