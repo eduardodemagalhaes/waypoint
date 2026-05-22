@@ -47,20 +47,74 @@ def create_token(db: Session, user_id: str, token_type: str) -> str:
     return token
 
 
+
+def _email_template(heading: str, body_html: str, cta_url: str, cta_label: str, footnote: str) -> str:
+    """Branded HTML email — Waypoint visual identity."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{heading}</title></head>
+<body style="margin:0;padding:0;background:#ede7da;font-family:'DM Sans',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ede7da;padding:40px 16px;">
+<tr><td align="center">
+<table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
+  <tr><td style="padding-bottom:24px;text-align:center;">
+    <span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#1a1814;letter-spacing:.5px;">
+      &#10022; Waypoint
+    </span>
+  </td></tr>
+  <tr><td style="background:#f5f0e8;border-radius:12px;padding:40px 36px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+    <h1 style="margin:0 0 16px;font-family:Georgia,serif;font-size:26px;font-weight:700;color:#1a1814;line-height:1.2;">
+      {heading}
+    </h1>
+    {body_html}
+    <table cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
+      <tr><td style="background:#c4611a;border-radius:8px;">
+        <a href="{cta_url}" style="display:inline-block;padding:14px 32px;color:#fff;
+           font-family:'DM Sans',Arial,sans-serif;font-size:15px;font-weight:600;
+           text-decoration:none;letter-spacing:.2px;">{cta_label}</a>
+      </td></tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:12px;color:#8a847c;word-break:break-all;">
+      Or copy this link: <a href="{cta_url}" style="color:#c4611a;">{cta_url}</a>
+    </p>
+    <hr style="margin:32px 0;border:none;border-top:1px solid #e0d8cc;">
+    <p style="margin:0;font-size:12px;color:#8a847c;line-height:1.6;">{footnote}</p>
+  </td></tr>
+  <tr><td style="padding-top:24px;text-align:center;">
+    <p style="margin:0;font-size:11px;color:#c4bdb4;">Waypoint &middot; trip.helper@emdm.ch</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>"""
+
+
 def send_verification_email(to: str, username: str, token: str):
     link = f"{FRONTEND_URL}/verify-email?token={token}"
     subject = "Confirm your Waypoint account"
-    text = f"Hi {username},\n\nConfirm your email address:\n{link}\n\nThis link expires in 24 hours.\n\nWaypoint"
-    html = f"""
-    <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
-      <h2 style="color:#1a1a2e">Welcome to Waypoint ✦</h2>
-      <p>Hi {username}, please confirm your email address to activate your account.</p>
-      <a href="{link}" style="display:inline-block;margin:24px 0;padding:12px 28px;
-         background:#6c63ff;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">
-        Confirm email
-      </a>
-      <p style="color:#888;font-size:13px">Link expires in 24 hours. If you didn't register, ignore this email.</p>
-    </div>"""
+    text = (
+        f"Hi {username},\n\n"
+        f"Please confirm your email address to activate your Waypoint account:\n{link}\n\n"
+        f"This link expires in 24 hours. If you didn't register, you can safely ignore this email.\n\n"
+        f"— Waypoint"
+    )
+    body = (
+        f"<p style=\"margin:0 0 16px;font-size:16px;color:#4a4540;line-height:1.6;\">"
+        f"  Hi <strong style=\"color:#1a1814\">{username}</strong>,"
+        f"</p>"
+        "<p style=\"margin:0;font-size:15px;color:#4a4540;line-height:1.7;\">"
+        "  Welcome to Waypoint. Click below to confirm your email address"
+        "  and activate your account."
+        "</p>"
+    )
+    html = _email_template(
+        heading="Confirm your email",
+        body_html=body,
+        cta_url=link,
+        cta_label="Confirm email address",
+        footnote="This link expires in 24 hours. If you didn't create a Waypoint account, you can safely ignore this email."
+    )
     send_email(to, subject, html, text)
 
 
@@ -248,17 +302,29 @@ RESET_EXPIRY_HOURS = 1
 def send_reset_email(to: str, username: str, token: str):
     link = f"{FRONTEND_URL}/reset-password?token={token}"
     subject = "Reset your Waypoint password"
-    text = f"Hi {username},\n\nReset your password here:\n{link}\n\nThis link expires in 1 hour. If you didn't request this, ignore it.\n\nWaypoint"
-    html = f"""
-    <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
-      <h2 style="color:#1a1a2e">Password reset ✦</h2>
-      <p>Hi {username}, click below to set a new password for your Waypoint account.</p>
-      <a href="{link}" style="display:inline-block;margin:24px 0;padding:12px 28px;
-         background:#6c63ff;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">
-        Reset password
-      </a>
-      <p style="color:#888;font-size:13px">Link expires in 1 hour. If you didn't request this, ignore this email.</p>
-    </div>"""
+    text = (
+        f"Hi {username},\n\n"
+        f"We received a request to reset the password for your Waypoint account.\n\n"
+        f"Reset your password here:\n{link}\n\n"
+        f"This link expires in 1 hour. If you didn't request this, you can safely ignore this email.\n\n"
+        f"— Waypoint"
+    )
+    body = (
+        f"<p style=\"margin:0 0 16px;font-size:16px;color:#4a4540;line-height:1.6;\">"
+        f"  Hi <strong style=\"color:#1a1814\">{username}</strong>,"
+        f"</p>"
+        "<p style=\"margin:0;font-size:15px;color:#4a4540;line-height:1.7;\">"
+        "  We received a request to reset the password for your Waypoint account."
+        "  Click below to choose a new password."
+        "</p>"
+    )
+    html = _email_template(
+        heading="Reset your password",
+        body_html=body,
+        cta_url=link,
+        cta_label="Reset password",
+        footnote="This link expires in 1 hour and can only be used once. If you didn't request a password reset, you can safely ignore this email — your account remains secure."
+    )
     send_email(to, subject, html, text)
 
 

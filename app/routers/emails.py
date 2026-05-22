@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
+from app.routers.auth import _email_template
 from app.models.models import RawEmail, Segment, Trip
 from app.schemas.schemas import SegmentOut
 import os, json, re, smtplib
@@ -33,39 +34,43 @@ def lookup_user_by_email(db, sender_email: str):
     return dict(row) if row else None
 
 def send_unregistered_reply(to: str):
-    """Send a friendly reply when sender is not a registered user."""
-    register_url = f"{FRONTEND_URL}"
+    """Send a branded reply when sender is not a registered user."""
+    register_url = FRONTEND_URL
     subject = "Waypoint — we don't recognise this email address"
-    body_text = f"""Hi,
-
-We received your email but couldn't match it to a Waypoint account.
-
-To use Waypoint, please register at:
-{register_url}
-
-Once registered, forward your travel confirmation emails to waypoint@emdm.ch and we'll parse them automatically.
-
-— Waypoint
-"""
-    body_html = f"""
-<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
-  <h2 style="color:#1a1a2e">We don't recognise this email ✦</h2>
-  <p>We received your forwarded email but couldn't match <b>{to}</b> to a Waypoint account.</p>
-  <p>To get started, create a free account — make sure to register with this email address.</p>
-  <a href="{register_url}" style="display:inline-block;margin:24px 0;padding:12px 28px;
-     background:#6c63ff;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">
-    Create account
-  </a>
-  <p style="color:#888;font-size:13px">Once registered, forward any travel confirmation email to
-     <b>waypoint@emdm.ch</b> and we'll build your itinerary automatically.</p>
-</div>"""
+    body_text = (
+        f"Hi,\n\n"
+        f"We received your forwarded email but couldn't match {to} to a Waypoint account.\n\n"
+        f"To use Waypoint, register at:\n{register_url}\n\n"
+        f"Once registered, forward your travel confirmation emails to waypoint@emdm.ch "
+        f"and we'll build your itinerary automatically.\n\n"
+        f"— Waypoint"
+    )
+    body_html = (
+        "<p style=\"margin:0 0 12px;font-size:15px;color:#4a4540;line-height:1.7;\">"
+        "  We received your forwarded email but couldn&#39;t find a Waypoint account"
+        f" registered to <strong style=\"color:#1a1814\">{to}</strong>."
+        "</p>"
+        "<p style=\"margin:0;font-size:15px;color:#4a4540;line-height:1.7;\">"
+        "  Create a free account — make sure to register with this exact email address."
+        "  Once you&#39;re in, forward any travel confirmation to"
+        "  <strong style=\"color:#1a1814\">waypoint@emdm.ch</strong>"
+        "  and we&#39;ll build your itinerary automatically."
+        "</p>"
+    )
+    html = _email_template(
+        heading="Email not recognised",
+        body_html=body_html,
+        cta_url=register_url,
+        cta_label="Create your account",
+        footnote="You're receiving this because someone forwarded a travel confirmation from this address to waypoint@emdm.ch."
+    )
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"]    = f"Waypoint <{FROM_EMAIL}>"
         msg["To"]      = to
         msg.attach(MIMEText(body_text, "plain"))
-        msg.attach(MIMEText(body_html, "html"))
+        msg.attach(MIMEText(html, "html"))
         with smtplib.SMTP("localhost") as s:
             s.sendmail(FROM_EMAIL, [to], msg.as_string())
     except Exception as e:
