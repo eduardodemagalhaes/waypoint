@@ -4,12 +4,22 @@ from pydantic import BaseModel
 from typing import Optional, Any
 from app.database import get_db
 from app.models.models import Segment, Trip
+from app.routers.deps import get_current_user
 from app.routers.segments import schedule_enrich
+from app.routers.guardrails import run_guardrails, GuardrailHit
 from app.schemas.schemas import SegmentOut
 import os, json, re, httpx
 from openai import OpenAI
 
 router = APIRouter(prefix="/api/parse", tags=["parse"])
+
+def _verify_trip_ownership(trip_id: str, user: dict, db):
+    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(404, "Trip not found")
+    if trip.user_id != user["id"]:
+        raise HTTPException(403, "Not your trip")
+    return trip
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 AVIATIONSTACK_BASE = "http://api.aviationstack.com/v1/flights"
@@ -174,6 +184,7 @@ class DialogRequest(BaseModel):
     history: list[DialogMessage] = []
     draft: Optional[dict[str, Any]] = None
     all_trips: list[dict] = []
+    bypass_guardrails: bool = False
 
 class DialogResponse(BaseModel):
     status: str
@@ -184,6 +195,7 @@ class DialogResponse(BaseModel):
     aviationstack_note: Optional[str] = None
     return_aviationstack_note: Optional[str] = None
     timetable_note: Optional[str] = None
+    guardrail_hit: Optional[dict] = None
     history: list[DialogMessage] = []
 
 class DialogConfirmRequest(BaseModel):
@@ -194,10 +206,9 @@ class DialogConfirmRequest(BaseModel):
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/text", response_model=SegmentOut, status_code=201)
-def parse_text(body: ParseRequest, bg: BackgroundTasks, db: Session = Depends(get_db)):
+def parse_text(body: ParseRequest, bg: BackgroundTasks, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """One-shot NL parse — kept for backward compatibility."""
-    if not db.query(Trip).filter(Trip.id == body.trip_id).first():
-        raise HTTPException(404, "Trip not found")
+    _verify_trip_ownership(body.trip_id, user, db)
 
     r = client.chat.completions.create(
         model="gpt-4o", temperature=0,
@@ -218,24 +229,31 @@ def parse_text(body: ParseRequest, bg: BackgroundTasks, db: Session = Depends(ge
     seg.meta = data.get("meta", {})
     if av_note:
         seg.meta["aviationstack_note"] = av_note
-    if timetable_note:
-        seg.meta["timetable_note"] = timetable_note
     db.add(seg); db.commit(); db.refresh(seg)
     schedule_enrich(bg, seg.id)
     return seg
 
 
 @router.post("/dialog", response_model=DialogResponse)
-async def parse_dialog(body: DialogRequest, db: Session = Depends(get_db)):
+async def parse_dialog(body: DialogRequest, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """
     Multi-turn dialog. Frontend sends full history + draft each turn.
     GPT asks one question at a time until it has enough, then sets status=ready.
     No DB write happens here — that's done by /dialog/confirm.
     """
-    if not db.query(Trip).filter(Trip.id == body.trip_id).first():
-        raise HTTPException(404, "Trip not found")
+    _verify_trip_ownership(body.trip_id, user, db)
 
     trip = db.query(Trip).filter(Trip.id == body.trip_id).first()
+
+    # ── Guardrails (pre-GPT) ─────────────────────────────────────────────────
+    hit = None if body.bypass_guardrails else run_guardrails(body.message, body.draft, trip, body.all_trips)
+    if hit:
+        return DialogResponse(
+            status="guardrail",
+            guardrail_hit={"code": hit.code, "message": hit.message, "options": hit.options, "meta": hit.meta},
+            history=list(body.history),
+        )
+
     # Build existing segments summary
     from app.models.models import Segment as SegModel
     existing = db.query(SegModel).filter(SegModel.trip_id == trip.id).order_by(SegModel.departs_at).all()
@@ -294,8 +312,7 @@ def dialog_confirm(body: DialogConfirmRequest, bg: BackgroundTasks, db: Session 
     """
     User approved the summary card — write the segment to DB.
     """
-    if not db.query(Trip).filter(Trip.id == body.trip_id).first():
-        raise HTTPException(404, "Trip not found")
+    _verify_trip_ownership(body.trip_id, user, db)
 
     data = dict(body.draft)
     parse_status = data.pop("parse_status", "ok")
@@ -630,7 +647,7 @@ class PlanResponse(BaseModel):
     history: list = []
 
 @router.post("/plan", response_model=PlanResponse)
-async def plan_trip(body: PlanRequest, bg: BackgroundTasks, db: Session = Depends(get_db)):
+async def plan_trip(body: PlanRequest, bg: BackgroundTasks, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     from app.models.models import Trip as TripModel
 
     messages = list(body.history) + [{"role": "user", "content": body.message}]

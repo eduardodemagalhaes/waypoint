@@ -1,5 +1,11 @@
 # Waypoint — Project Backlog & Context
 
+## Development workflow
+- **All new features go to test first** (`test.waypoint.emdm.ch`, port 8001, service: `waypoint-test`)
+- Eduardo tests and approves → then promote to live (`waypoint.emdm.ch`, port 8000, service: `waypoint`)
+- Never implement new features directly on live
+- This rule applies to all emdm.ch projects
+
 ## Quick context for new sessions
 - **Server**: Hetzner CX22, `178.104.227.162`, Ubuntu 24.04, user `eduardo`
 - **App**: `/home/eduardo/waypoint/` — FastAPI + SQLite + OpenAI GPT-4o
@@ -14,6 +20,47 @@
 - Email ingest: forward to `waypoint@emdm.ch` → parsed by GPT-4o → segments created
 - Connection search: `transport.opendata.ch` for Swiss/cross-border, fallback to taxi estimate + booking sites for German/other routes
 - No auth yet — single user, protected by `SECRET_TOKEN` header
+
+## Public beta principles (pre-auth)
+- Dialog state (`dlg`) is **ephemeral and trip-scoped**: resets on trip switch, page reload, or explicit cancel
+- Dialog history is never persisted server-side (pre-auth) — each conversation starts fresh
+- Trip context (name, dates, all existing segments) is always injected into every GPT call via `trip_ctx` — this is the only "memory" the assistant has
+- Once auth lands (#1), dialog history can optionally be persisted per trip/user
+
+---
+
+## In progress
+
+### Segment date guardrails (backlog #6) — test ready, not yet promoted
+- `app/routers/guardrails.py` — new dedicated module, pre-GPT checks
+- `GuardrailHit` dataclass: `code`, `message`, `options`, `meta`
+- `check_date_out_of_range()` — fires when segment date is outside trip bounds; suggests matching trip if one exists
+- `run_guardrails()` registry pattern — new checks can be added without touching `parse.py`
+- `parse.py`: calls `run_guardrails()` before GPT; returns `status="guardrail"` early; supports `bypass_guardrails=True`
+- Frontend: `appendGuardrailInline()` renders warning + action buttons inline in dialog thread
+- Actions: Extend trip dates / Move to matching trip / Add anyway / Cancel
+- **Planned next**: route relevance guardrail (GPT-assisted, saved for later — risk of false positives)
+
+### Frontend error codes — test ready, not yet promoted
+- Every `catch` block in `static/index.html` now shows `[ERRxx]` in the toast/bot message and `console.error()`
+- Makes it trivial to pinpoint errors without reading all the code
+
+| Code | Location |
+|------|----------|
+| ERR01 | `loadTrips()` — trips fetch failed on boot |
+| ERR02 | `sendDialogTurn()` — main NL add dialog |
+| ERR03 | Segment save — inline form catch block |
+| ERR04 | Segment save — modal POST/PATCH |
+| ERR05 | Trip edit save |
+| ERR07 | Edit segment assistant (`_editAssistAddMsg`) |
+| ERR08 | Segment move |
+| ERR09 | Trip-level assistant |
+| ERR10 | Trip planner (`plannerSend`) |
+| ERR11 | Add segment (guardrail / date-check path) |
+| ERR12 | Connection search (`searchConnections`) |
+
+When adding new catch blocks, use the next available number and add it here.
+Next free: **ERR13**
 
 ---
 
@@ -53,11 +100,7 @@
 - Lives at empty state + "✦ Plan with AI" in sidebar
 - Endpoint: `POST /api/parse/plan`
 
-### 6. Segment date guardrails
-- When adding a segment (chatbot or form) outside the current trip's date range:
-  show warning: "Update trip dates / Move to [matching trip] / Create new trip?"
-- Applies to NL dialog and manual add form
-- If another trip covers that date, suggest moving there
+### 6. Segment date guardrails — see "In progress" above
 
 ### 7. DB (Deutsche Bahn) connection search ✅ DONE
 - Self-host `db-vendo-client` Docker container on the VPS:

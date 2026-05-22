@@ -16,6 +16,7 @@ class Trip(Base):
     location      = Column(String, nullable=True)
     description   = Column(String, nullable=True)
     home_currency = Column(String, default="CHF")
+    user_id       = Column(String, ForeignKey("users.id"), nullable=True)
     created_at    = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     segments   = relationship("Segment",  back_populates="trip", cascade="all, delete-orphan")
     raw_emails = relationship("RawEmail", back_populates="trip", cascade="all, delete-orphan")

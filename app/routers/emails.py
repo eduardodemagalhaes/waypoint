@@ -5,11 +5,71 @@ from typing import Optional
 from app.database import get_db
 from app.models.models import RawEmail, Segment, Trip
 from app.schemas.schemas import SegmentOut
-import os, json, re
+import os, json, re, smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from sqlalchemy import text
 from openai import OpenAI
 
 router = APIRouter(prefix="/api/emails", tags=["emails"])
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+FROM_EMAIL   = os.getenv("FROM_EMAIL", "trip.helper@emdm.ch")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://waypoint.emdm.ch")
+
+import re as _re
+def _extract_email(addr: str) -> str:
+    """Extract plain email from 'Name <email>' format."""
+    m = _re.search(r'<([^>]+)>', addr)
+    return (m.group(1) if m else addr).strip().lower()
+
+def lookup_user_by_email(db, sender_email: str):
+    """Return user row for a verified sender, or None."""
+    clean = _extract_email(sender_email)
+    row = db.execute(
+        text("SELECT id, username, email FROM users WHERE LOWER(email)=:email AND is_verified=1"),
+        {"email": clean}
+    ).mappings().fetchone()
+    return dict(row) if row else None
+
+def send_unregistered_reply(to: str):
+    """Send a friendly reply when sender is not a registered user."""
+    register_url = f"{FRONTEND_URL}"
+    subject = "Waypoint — we don't recognise this email address"
+    body_text = f"""Hi,
+
+We received your email but couldn't match it to a Waypoint account.
+
+To use Waypoint, please register at:
+{register_url}
+
+Once registered, forward your travel confirmation emails to waypoint@emdm.ch and we'll parse them automatically.
+
+— Waypoint
+"""
+    body_html = f"""
+<div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px">
+  <h2 style="color:#1a1a2e">We don't recognise this email ✦</h2>
+  <p>We received your forwarded email but couldn't match <b>{to}</b> to a Waypoint account.</p>
+  <p>To get started, create a free account — make sure to register with this email address.</p>
+  <a href="{register_url}" style="display:inline-block;margin:24px 0;padding:12px 28px;
+     background:#6c63ff;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">
+    Create account
+  </a>
+  <p style="color:#888;font-size:13px">Once registered, forward any travel confirmation email to
+     <b>waypoint@emdm.ch</b> and we'll build your itinerary automatically.</p>
+</div>"""
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = f"Waypoint <{FROM_EMAIL}>"
+        msg["To"]      = to
+        msg.attach(MIMEText(body_text, "plain"))
+        msg.attach(MIMEText(body_html, "html"))
+        with smtplib.SMTP("localhost") as s:
+            s.sendmail(FROM_EMAIL, [to], msg.as_string())
+    except Exception as e:
+        import logging; logging.getLogger("waypoint").warning(f"Could not send unregistered reply: {e}")
 
 SYSTEM = """Extract ALL travel segments from this booking confirmation email.
 You MUST return a JSON object with a single key "segments" whose value is an array.
@@ -67,12 +127,16 @@ Rules:
 """
 
 
-def find_best_trip(db, segments):
+def find_best_trip(db, segments, user_id: str = None):
     """
     Find the best trip for a set of segments based on date overlap.
+    Scoped to user_id if provided.
     Priority: exact date range match > same month > closest upcoming > most recent.
     """
-    trips = db.query(Trip).order_by(Trip.start_date).all()
+    q = db.query(Trip)
+    if user_id:
+        q = q.filter(Trip.user_id == user_id)
+    trips = q.order_by(Trip.start_date).all()
     if not trips:
         return None
     if len(trips) == 1:
@@ -164,6 +228,16 @@ def ingest_email(body: IngestRequest, db: Session = Depends(get_db)):
     existing = db.query(RawEmail).filter(RawEmail.message_id == body.message_id).first()
     if existing:
         return IngestResponse(ok=True, message_id=body.message_id, parse_status="duplicate", error="Already processed")
+
+    # ── Resolve sender to a user ───────────────────────────────────────────────
+    sender_clean = _extract_email(body.from_address)
+    user = lookup_user_by_email(db, sender_clean)
+    if not user:
+        send_unregistered_reply(sender_clean)
+        return IngestResponse(ok=False, message_id=body.message_id,
+                              parse_status="unregistered",
+                              error=f"Sender {sender_clean} not registered")
+
     raw = RawEmail(message_id=body.message_id, from_address=body.from_address,
                    subject=body.subject, body_text=body.body_text, parse_status="processing")
     db.add(raw); db.flush()
@@ -177,11 +251,11 @@ def ingest_email(body: IngestRequest, db: Session = Depends(get_db)):
         return IngestResponse(ok=True, message_id=body.message_id, parse_status="no_segments", segments_created=0)
     trip_id = body.trip_id
     if not trip_id:
-        trip = find_best_trip(db, segments_data)
+        trip = find_best_trip(db, segments_data, user_id=user["id"])
         trip_id = trip.id if trip else None
     if not trip_id:
         raw.parse_status = "failed"; db.commit()
-        return IngestResponse(ok=False, message_id=body.message_id, parse_status="failed", error="No trip found")
+        return IngestResponse(ok=False, message_id=body.message_id, parse_status="failed", error="No trip found for this user")
     raw.trip_id = trip_id
     cols = Segment.__table__.columns.keys()
     created = 0

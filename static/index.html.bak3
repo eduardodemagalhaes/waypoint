@@ -329,37 +329,6 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   padding:10px 16px;border-radius:8px;font-size:13px;z-index:999;
   animation:fadeIn .2s ease;pointer-events:none}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-
-/* ── AUTH SCREEN ── */
-.auth-screen{position:fixed;inset:0;z-index:999;background:var(--paper);
-  display:flex;align-items:center;justify-content:center;padding:1rem}
-.auth-card{width:100%;max-width:400px;background:var(--paper2);border:1px solid var(--paper3);
-  border-radius:12px;padding:2rem 2rem 1.75rem;box-shadow:0 4px 24px rgba(0,0,0,.06)}
-.auth-logo{font-family:var(--serif);font-size:22px;letter-spacing:-.02em;
-  display:flex;align-items:center;gap:8px;margin-bottom:1.75rem;color:var(--ink)}
-.auth-logo-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
-.auth-title{font-size:15px;font-weight:600;color:var(--ink);margin-bottom:1.25rem}
-.auth-field{margin-bottom:1rem}
-.auth-field label{display:block;font-size:12px;font-weight:500;color:var(--ink2);
-  text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
-.auth-field input{width:100%;padding:9px 12px;border:1px solid var(--paper3);border-radius:6px;
-  background:var(--paper);font-family:var(--sans);font-size:14px;color:var(--ink);outline:none;
-  transition:border-color .15s}
-.auth-field input:focus{border-color:var(--accent)}
-.auth-btn{width:100%;padding:10px;background:var(--ink);color:var(--paper);border:none;
-  border-radius:6px;font-family:var(--sans);font-size:14px;font-weight:500;cursor:pointer;
-  transition:background .15s;margin-top:.25rem}
-.auth-btn:hover{background:var(--ink2)}
-.auth-btn:disabled{opacity:.5;cursor:default}
-.auth-error{font-size:12px;color:var(--red);margin-top:.75rem;min-height:18px;text-align:center}
-.auth-success{font-size:12px;color:var(--green);margin-top:.75rem;min-height:18px;text-align:center}
-.auth-switch{margin-top:1.25rem;text-align:center;font-size:13px;color:var(--ink3)}
-.auth-switch a{color:var(--accent);text-decoration:none;font-weight:500;cursor:pointer}
-.auth-switch a:hover{text-decoration:underline}
-.auth-divider{border:none;border-top:1px solid var(--paper3);margin:1.25rem 0}
-/* user pill in header */
-.user-pill{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2)}
-.user-pill-name{font-weight:500;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -370,7 +339,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
       style="display:none;font-size:18px;padding:2px 8px">☰</button>
     <div class="logo"><div class="logo-dot"></div>Waypoint</div>
   </div>
-  <div class="hdr-right" id="hdrUser">
+  <div class="hdr-right">
     <button class="btn btn-ghost btn-sm" onclick="openEditTrip()" id="editTripBtn">Edit trip</button>
     <button class="btn btn-primary btn-sm" onclick="openAddSeg()">+ Add segment</button>
   </div>
@@ -671,13 +640,12 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 
 <script>
 // ── CONFIG ───────────────────────────────────────────────────
-const API = '';
-// Auth via session cookie — no token header needed
-const H   = {'Content-Type':'application/json'};
+const API   = '';
+const TOKEN = 'd5f9e9b215da795ef927a399c3eba355';
+const H     = {'Content-Type':'application/json','X-Token':TOKEN};
 
 // ── STATE ────────────────────────────────────────────────────
 let trips = [], currentTrip = null, editingSegId = null;
-let currentUser = null;
 
 // ── DIALOG STATE ─────────────────────────────────────────────
 let dlg = {
@@ -692,177 +660,15 @@ let dlg = {
 
 // ── BOOT ─────────────────────────────────────────────────────
 async function boot() {
-  // Check for password reset token in URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const resetToken = urlParams.get('token');
-  if (window.location.pathname.includes('reset-password') || resetToken) {
-    await showResetScreen(resetToken);
-    return;
-  }
-
-  // Check auth
-  try {
-    const r = await fetch(`${API}/api/auth/me`, {credentials:'include'});
-    if (!r.ok) { showAuthScreen(); return; }
-    currentUser = await r.json();
-  } catch(e) { showAuthScreen(); return; }
-
-  // Authenticated — render app
-  hideAuthScreen();
-  renderUserPill();
   if (window.innerWidth <= 700) document.getElementById('mobMenuBtn').style.display = 'inline-flex';
   await loadTrips();
-  if (Array.isArray(trips) && trips.length) selectTrip(trips[0]);
+  if (trips.length) selectTrip(trips[0]);
   else renderEmpty();
 }
 
-// ── AUTH UI ───────────────────────────────────────────────────
-function showAuthScreen()  { document.getElementById('authScreen').style.display = 'flex'; }
-function hideAuthScreen()  { document.getElementById('authScreen').style.display = 'none'; }
-function showLogin()    { _authPanel('authLogin'); }
-function showRegister() { _authPanel('authRegister'); }
-function showForgot()   { _authPanel('authForgot'); }
-function _authPanel(id) {
-  ['authLogin','authRegister','authForgot','authReset'].forEach(p => {
-    document.getElementById(p).style.display = p === id ? '' : 'none';
-  });
-}
-async function showResetScreen(token) {
-  showAuthScreen();
-  _authPanel('authReset');
-  const el = document.getElementById('authReset');
-  el.dataset.token = token || '';
-  // Validate token immediately so user gets early feedback
-  if (!token) {
-    document.getElementById('resetError').textContent = 'Invalid or missing reset link.';
-    document.getElementById('resetBtn').disabled = true;
-    return;
-  }
-  // Quick pre-check by attempting a dummy reset — actually just show form and let submit handle it
-  // Token validity is checked server-side on submit; no need to expose a validation endpoint
-  document.getElementById('resetError').textContent = '';
-  document.getElementById('resetBtn').disabled = false;
-}
-
-function renderUserPill() {
-  const el = document.getElementById('hdrUser');
-  if (!el || !currentUser) return;
-  el.innerHTML = `<span class="user-pill">
-    <span class="user-pill-name">${currentUser.username}</span>
-    <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sign out</button>
-  </span>`;
-}
-
-async function doLogin() {
-  const btn = document.getElementById('loginBtn');
-  const err = document.getElementById('loginError');
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value;
-  err.textContent = '';
-  btn.disabled = true; btn.textContent = 'Signing in…';
-  try {
-    const r = await fetch(`${API}/api/auth/login`, {
-      method:'POST', credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({email, password})
-    });
-    const d = await r.json();
-    if (!r.ok) { err.textContent = d.detail || 'Login failed'; return; }
-    currentUser = d.user;
-    hideAuthScreen();
-    renderUserPill();
-    await loadTrips();
-    if (Array.isArray(trips) && trips.length) selectTrip(trips[0]);
-    else renderEmpty();
-  } catch(e) { err.textContent = 'Connection error'; }
-  finally { btn.disabled = false; btn.textContent = 'Sign in'; }
-}
-
-async function doRegister() {
-  const btn = document.getElementById('registerBtn');
-  const err = document.getElementById('registerError');
-  const suc = document.getElementById('registerSuccess');
-  const username = document.getElementById('regUsername').value.trim();
-  const email    = document.getElementById('regEmail').value.trim();
-  const password = document.getElementById('regPassword').value;
-  err.textContent = ''; suc.textContent = '';
-  btn.disabled = true; btn.textContent = 'Creating account…';
-  try {
-    const r = await fetch(`${API}/api/auth/register`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({username, email, password})
-    });
-    const d = await r.json();
-    if (!r.ok) { err.textContent = d.detail || 'Registration failed'; return; }
-    suc.textContent = '✓ Check your email to confirm your account.';
-    document.getElementById('regUsername').value = '';
-    document.getElementById('regEmail').value = '';
-    document.getElementById('regPassword').value = '';
-  } catch(e) { err.textContent = 'Connection error'; }
-  finally { btn.disabled = false; btn.textContent = 'Create account'; }
-}
-
-async function doForgot() {
-  const btn = document.getElementById('forgotBtn');
-  const err = document.getElementById('forgotError');
-  const suc = document.getElementById('forgotSuccess');
-  const email = document.getElementById('forgotEmail').value.trim();
-  err.textContent = ''; suc.textContent = '';
-  btn.disabled = true; btn.textContent = 'Sending…';
-  try {
-    const r = await fetch(`${API}/api/auth/forgot-password`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({email})
-    });
-    const d = await r.json();
-    suc.textContent = d.message || 'If that email is registered, a reset link has been sent.';
-  } catch(e) { err.textContent = 'Connection error'; }
-  finally { btn.disabled = false; btn.textContent = 'Send reset link'; }
-}
-
-async function doReset() {
-  const btn   = document.getElementById('resetBtn');
-  const err   = document.getElementById('resetError');
-  const suc   = document.getElementById('resetSuccess');
-  const token = document.getElementById('authReset').dataset.token;
-  const password  = document.getElementById('resetPassword').value;
-  const password2 = document.getElementById('resetPassword2').value;
-  err.textContent = ''; suc.textContent = '';
-  if (password !== password2) { err.textContent = 'Passwords do not match'; return; }
-  btn.disabled = true; btn.textContent = 'Saving…';
-  try {
-    const r = await fetch(`${API}/api/auth/reset-password`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({token, password})
-    });
-    const d = await r.json();
-    if (!r.ok) { err.textContent = d.detail || 'Reset failed'; return; }
-    suc.textContent = '✓ Password updated! Redirecting to sign in…';
-    setTimeout(() => {
-      window.history.replaceState({}, '', '/');
-      _authPanel('authLogin');
-    }, 2000);
-  } catch(e) { err.textContent = 'Connection error'; }
-  finally { btn.disabled = false; btn.textContent = 'Set new password'; }
-}
-
-async function doLogout() {
-  await fetch(`${API}/api/auth/logout`, {method:'POST', credentials:'include'});
-  currentUser = null;
-  trips = []; currentTrip = null;
-  showAuthScreen();
-  showLogin();
-}
-
 async function loadTrips() {
-  try {
-    const r = await fetch(`${API}/api/trips/`, {credentials:'include', headers:H});
-    const data = await r.json();
-    trips = Array.isArray(data) ? data : [];
-  } catch(e) {
-    console.error('[ERR01] loadTrips failed:', e);
-    trips = [];
-  }
+  const r = await fetch(`${API}/api/trips/`, {headers:H});
+  trips = await r.json();
   renderSidebar();
 }
 
@@ -921,7 +727,7 @@ async function selectTrip(trip) {
   cancelDialog();
   currentTrip = trip;
   document.getElementById('tripName').textContent = trip.name;
-  const r = await fetch(`${API}/api/trips/${trip.id}`, {credentials:'include', headers:H});
+  const r = await fetch(`${API}/api/trips/${trip.id}`, {headers:H});
   currentTrip = await r.json();
   // Sync segment count back into trips array for sidebar
   const idx = trips.findIndex(t => t.id === currentTrip.id);
@@ -1205,24 +1011,31 @@ function handleNlKey(e) {
   if (e.key === 'Escape') cancelDialog();
 }
 
-async function sendDialogTurn(text, {showInThread=true, bypassGuardrails=false}={}) {
-  /* Core dialog turn — send text to backend, update state, handle response.
-     Used by nlSubmit() and by guardrail action buttons. */
-  if (!currentTrip) return;
+async function nlSubmit() {
+  const input = document.getElementById('nlInput');
+  const text  = input.value.trim();
+  if (!text || !currentTrip) { toast('Create a trip first'); return; }
+
+  // If no active dialog, reset state so a fresh conversation never inherits a stale draft
+  if (!dlg.active) {
+    dlg = {active:false, history:[], draft:null, avNote:null, ttNote:null, returnDraft:null, returnAvNote:null, awaitingReturn:false};
+  }
+
   setNlLoading(true);
+
   try {
     const body = {
-      trip_id:           currentTrip.id,
-      message:           text,
-      history:           dlg.history,
-      draft:             dlg.draft,
-      all_trips:         buildTripContext(),
-      bypass_guardrails: bypassGuardrails,
+      trip_id:   currentTrip.id,
+      message:   text,
+      history:   dlg.history,
+      draft:     dlg.draft,
+      all_trips: buildTripContext(),
     };
-    const r   = await fetch(`${API}/api/parse/dialog`, {method:'POST', credentials:'include', headers:H, body:JSON.stringify(body)});
+    const r   = await fetch(`${API}/api/parse/dialog`, {method:'POST', headers:H, body:JSON.stringify(body)});
     if (!r.ok) throw new Error(await r.text());
     const res = await r.json();
 
+    // Update dialog state
     dlg.active  = true;
     dlg.history = res.history;
     dlg.draft   = res.draft;
@@ -1231,9 +1044,12 @@ async function sendDialogTurn(text, {showInThread=true, bypassGuardrails=false}=
     dlg.returnDraft  = res.return_draft || null;
     dlg.returnAvNote = res.return_aviationstack_note || null;
 
-    if (showInThread) appendThread('user', text);
+    // Add user message to thread
+    appendThread('user', text);
+    input.value = '';
 
     if (res.status === 'connection_search' && res.draft) {
+      // Connection search requested
       activateDialog();
       const fromSt = res.draft.origin || '';
       const toSt   = res.draft.destination || '';
@@ -1241,52 +1057,28 @@ async function sendDialogTurn(text, {showInThread=true, bypassGuardrails=false}=
       if (fromSt && toSt) {
         const depDt = (res.draft.departs_at || '').slice(0,16).replace('T',' ');
         const arrDt = (res.draft.arrives_at || '').slice(0,16).replace('T',' ');
-        await searchConnections(fromSt, toSt, {datetime: depDt||null, arrive_before: arrDt||null});
+        await searchConnections(fromSt, toSt, {
+          datetime:      depDt || null,
+          arrive_before: arrDt || null,
+        });
       }
-    } else if (res.status === 'guardrail') {
-      activateDialog();
-      const gh = res.guardrail_hit || {};
-      appendGuardrailInline(gh.message || 'This segment is outside the trip boundaries.', gh.options || [], gh.meta || {});
     } else if (res.status === 'question') {
+      // GPT needs more info
       activateDialog();
       appendThread('bot', res.question);
     } else {
+      // Ready — show summary card for confirmation
       activateDialog();
       appendThread('bot', 'Got everything I need. Does this look right?');
       renderSummary(res.draft, res.aviationstack_note, res.timetable_note);
     }
   } catch(e) {
-    appendThread('bot', 'Something went wrong [ERR02] — please try again.');
-    console.error('[ERR02]', e);
+    appendThread('bot', 'Something went wrong — please try again.');
+    console.error(e);
   } finally {
     setNlLoading(false);
   }
 }
-
-async function nlSubmit() {
-  const input = document.getElementById('nlInput');
-  const text  = input.value.trim();
-  if (!text) return;
-  if (!currentTrip) {
-    // No trip selected — redirect to the planner instead of doing nothing
-    if (!document.getElementById('plannerInput')) openPlanner();
-    const pi = document.getElementById('plannerInput');
-    if (pi) { pi.value = text; plannerSend(); document.getElementById('nlInput').value = ''; }
-    else toast('Create a trip first');
-    return;
-  }
-
-  // If no active dialog, reset state so a fresh conversation never inherits a stale draft
-  if (!dlg.active) {
-    dlg = {active:false, history:[], draft:null, avNote:null, ttNote:null, returnDraft:null, returnAvNote:null, awaitingReturn:false};
-  }
-
-  dlg._lastUserMessage = text;  // remember for guardrail "move to trip" replay
-  input.value = '';
-  await sendDialogTurn(text);
-}
-
-
 
 function activateDialog() {
   document.getElementById('nlBar').classList.add('dialog-active');
@@ -1307,93 +1099,6 @@ function cancelDialog() {
   document.getElementById('nlInput').placeholder = 'e.g. flight ZRH to HRG Oct 10 07:15 Swiss LX392…';
   document.getElementById('nlInput').value = '';
   document.getElementById('nlInput').focus();
-}
-
-function appendGuardrailInline(message, options, meta) {
-  const thread = document.getElementById('dialogThread');
-
-  // Warning message bubble
-  const msgEl = document.createElement('div');
-  msgEl.className = 'dialog-msg bot';
-  msgEl.style.cssText = 'border-left:3px solid var(--accent);background:var(--paper2)';
-  msgEl.textContent = '⚠ ' + message;
-  thread.appendChild(msgEl);
-
-  // Action buttons
-  const actionsEl = document.createElement('div');
-  actionsEl.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin:4px 0 8px 0';
-
-  const fmt = d => d ? d.split('-').reverse().join('.') : '?';
-
-  options.forEach(label => {
-    const btn = document.createElement('button');
-    btn.className = 'btn btn-ghost';
-    btn.style.cssText = 'text-align:left;font-size:12px;padding:6px 10px';
-    btn.textContent = label;
-
-    btn.onclick = async () => {
-      // Disable all buttons to prevent double-clicks
-      actionsEl.querySelectorAll('button').forEach(b => b.disabled = true);
-
-      if (label === 'Cancel') {
-        cancelDialog();
-        return;
-      }
-
-      if (label === 'Add anyway') {
-        // Re-send the original message with a bypass flag via a user follow-up
-        appendThread('user', 'Add it anyway to this trip.');
-        await sendDialogTurn(dlg._lastUserMessage || text, {bypassGuardrails: true, showInThread: false});
-        return;
-      }
-
-      if (label.startsWith('Extend')) {
-        // Auto-extend current trip to cover the segment date
-        const segDate = meta.segment_date;
-        if (segDate && currentTrip) {
-          const newStart = (currentTrip.start_date && segDate < currentTrip.start_date) ? segDate : currentTrip.start_date;
-          const newEnd   = (currentTrip.end_date   && segDate > currentTrip.end_date)   ? segDate : currentTrip.end_date;
-          await fetch(`${API}/api/trips/${currentTrip.id}`, {
-            method: 'PATCH', headers: H,
-            body: JSON.stringify({start_date: newStart, end_date: newEnd}),
-          });
-          const tr = await fetch(`${API}/api/trips/${currentTrip.id}`, {headers: H});
-          const updated = await tr.json();
-          currentTrip = {...currentTrip, start_date: updated.start_date, end_date: updated.end_date};
-          const idx = trips.findIndex(t => t.id === currentTrip.id);
-          if (idx >= 0) trips[idx] = {...trips[idx], ...currentTrip};
-          renderSidebar();
-          appendThread('bot', `Trip dates extended to cover ${fmt(segDate)}. Continuing…`);
-          await sendDialogTurn('Continue adding the segment (trip dates have been updated).');
-        }
-        return;
-      }
-
-      if (label.startsWith('Move to') && meta.suggested_trip_id) {
-        // Switch to the suggested trip and re-send
-        const target = trips.find(t => t.id === meta.suggested_trip_id);
-        if (target) {
-          cancelDialog();
-          await selectTrip(target.id);
-          appendThread('bot', `Switched to "${target.name}". Re-sending your request…`);
-          // Re-open dialog and send the original message
-          setTimeout(() => sendDialogTurn(dlg._lastUserMessage || ''), 300);
-        }
-        return;
-      }
-
-      if (label === 'Create new trip') {
-        cancelDialog();
-        openNewTrip();
-        return;
-      }
-    };
-
-    actionsEl.appendChild(btn);
-  });
-
-  thread.appendChild(actionsEl);
-  thread.scrollTop = thread.scrollHeight;
 }
 
 function appendThread(role, text) {
@@ -1507,8 +1212,8 @@ async function confirmSave() {
       await selectTrip(currentTrip);
       toast('Segment saved ✓');
     } catch(e) {
-      toast('Error saving [ERR03] — check console');
-      console.error('[ERR03]', e);
+      toast('Error saving — check console');
+      console.error(e);
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save segment ✓'; }
     }
   });
@@ -1686,7 +1391,7 @@ async function saveSeg() {
     const url    = editingSegId ? `${API}/api/segments/${editingSegId}` : `${API}/api/segments/`;
     const method = editingSegId ? 'PATCH' : 'POST';
     const r = await fetch(url, {method, headers:H, body:JSON.stringify(body)});
-    if (!r.ok) { toast('Error saving [ERR04] — check console'); console.error('[ERR04]', await r.text()); return; }
+    if (!r.ok) { toast('Error saving — check console'); console.error(await r.text()); return; }
     closeSegModal();
     await selectTrip(currentTrip);
     toast(editingSegId ? 'Segment updated' : 'Segment added');
@@ -1696,7 +1401,7 @@ async function saveSeg() {
 // ── DELETE ────────────────────────────────────────────────────
 async function deleteSeg(id) {
   if (!confirm('Delete this segment?')) return;
-  await fetch(`${API}/api/segments/${id}`, {method:'DELETE', credentials:'include', headers:H});
+  await fetch(`${API}/api/segments/${id}`, {method:'DELETE', headers:H});
   await selectTrip(currentTrip);
   toast('Segment deleted');
 }
@@ -1716,7 +1421,7 @@ async function saveTrip() {
     start_date: parseDate(document.getElementById('tStart').value) || null,
     end_date:   parseDate(document.getElementById('tEnd').value) || null,
   };
-  const r    = await fetch(`${API}/api/trips/`, {method:'POST', credentials:'include', headers:H, body:JSON.stringify(body)});
+  const r    = await fetch(`${API}/api/trips/`, {method:'POST', headers:H, body:JSON.stringify(body)});
   const trip = await r.json();
   closeTripModal();
   await loadTrips();
@@ -1899,9 +1604,9 @@ async function updateTrip() {
     description:  document.getElementById('etDesc').value.trim() || null,
   };
   const r = await fetch(`${API}/api/trips/${currentTrip.id}`, {
-    method:'PATCH', credentials:'include', headers:H, body:JSON.stringify(body)
+    method:'PATCH', headers:H, body:JSON.stringify(body)
   });
-  if (!r.ok) { toast('Error saving [ERR05] — check console'); console.error('[ERR05]', await r.text()); return; }
+  if (!r.ok) { toast('Error saving — check console'); console.error(await r.text()); return; }
   closeEditTripModal();
   await loadTrips();
   await selectTrip(trips.find(t => t.id === currentTrip.id) || trips[0]);
@@ -1910,7 +1615,7 @@ async function updateTrip() {
 
 async function deleteTrip() {
   if (!confirm(`Delete "${currentTrip.name}" and all its segments? This cannot be undone.`)) return;
-  await fetch(`${API}/api/trips/${currentTrip.id}`, {method:'DELETE', credentials:'include', headers:H});
+  await fetch(`${API}/api/trips/${currentTrip.id}`, {method:'DELETE', headers:H});
   closeEditTripModal();
   await loadTrips();
   if (trips.length) selectTrip(trips[0]);
@@ -1923,11 +1628,11 @@ async function enrichSeg(id, btn) {
   btn.disabled = true;
   btn.textContent = '⟳ Enriching…';
   try {
-    const r = await fetch(`${API}/api/segments/${id}/enrich`, {method:'POST', headers:H});
+    const r = await fetch(`${API}/api/segments/${id}/enrich?token=${TOKEN}`, {method:'POST', headers:H});
     if (!r.ok) throw new Error(await r.text());
 
     // Re-fetch trip data without full re-render so open card state is preserved
-    const tr = await fetch(`${API}/api/trips/${currentTrip.id}`, {credentials:'include', headers:H});
+    const tr = await fetch(`${API}/api/trips/${currentTrip.id}`, {headers:H});
     currentTrip = await tr.json();
 
     // Update just the detail fields inside this card without closing it
@@ -2060,7 +1765,7 @@ async function editAssistSend() {
   _editAssistHistory.push({role:'user', content: text});
 
   try {
-    const resp = await fetch(`${API}/api/parse/assist/edit`, {
+    const resp = await fetch(`${API}/api/parse/assist/edit?token=${TOKEN}`, {
       method: 'POST',
       headers: {...H, 'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -2097,8 +1802,8 @@ async function editAssistSend() {
     if (u.notes != null)   document.getElementById('fNotes').value  = u.notes;
     if (u.confirmed != null) document.getElementById('fConfirmed').checked = !!u.confirmed;
   } catch(e) {
-    _editAssistAddMsg('bot', 'Something went wrong [ERR07] — please try again.');
-    console.error('[ERR07]', e);
+    _editAssistAddMsg('bot', 'Something went wrong — please try again.');
+    console.error(e);
   }
 }
 
@@ -2146,7 +1851,7 @@ function openMoveSegModal(segId) {
 async function moveSeg(segId, targetTripId) {
   document.getElementById('moveSegOverlay').classList.remove('open');
   try {
-    const r = await fetch(`${API}/api/segments/${segId}`, {
+    const r = await fetch(`${API}/api/segments/${segId}?token=${TOKEN}`, {
       method: 'PATCH',
       headers: {...H, 'Content-Type':'application/json'},
       body: JSON.stringify({trip_id: targetTripId})
@@ -2155,7 +1860,7 @@ async function moveSeg(segId, targetTripId) {
     await selectTrip(currentTrip);
     toast('Segment moved ✓');
   } catch(e) {
-    toast('Move failed [ERR08]'); console.error('[ERR08]', e);
+    toast('Move failed'); console.error(e);
   }
 }
 
@@ -2257,7 +1962,7 @@ async function tripAssistSend() {
   _tripAssistMsg('user', text);
 
   try {
-    const r = await fetch(`${API}/api/parse/assist/trip`, {
+    const r = await fetch(`${API}/api/parse/assist/trip?token=${TOKEN}`, {
       method: 'POST',
       headers: {...H, 'Content-Type': 'application/json'},
       body: JSON.stringify({ message: text })
@@ -2269,8 +1974,8 @@ async function tripAssistSend() {
     if (d.start_date) document.getElementById('tStart').value = isoToDisplay(d.start_date);
     if (d.end_date)   document.getElementById('tEnd').value   = isoToDisplay(d.end_date);
   } catch(e) {
-    _tripAssistMsg('bot', 'Something went wrong [ERR09].');
-    console.error('[ERR09]', e);
+    _tripAssistMsg('bot', 'Something went wrong.');
+    console.error(e);
   }
 }
 
@@ -2338,7 +2043,7 @@ async function plannerSend() {
   const thinking = _plannerMsg('thinking', 'Thinking…');
 
   try {
-    const r = await fetch(`${API}/api/parse/plan`, {
+    const r = await fetch(`${API}/api/parse/plan?token=${TOKEN}`, {
       method: 'POST',
       headers: {...H, 'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -2392,8 +2097,8 @@ async function plannerSend() {
 
   } catch(e) {
     thinking?.remove();
-    _plannerMsg('bot', 'Something went wrong [ERR10] — please try again.');
-    console.error('[ERR10]', e);
+    _plannerMsg('bot', 'Something went wrong — please try again.');
+    console.error(e);
   } finally {
     if (input) input.disabled = false;
     input?.focus();
@@ -2419,7 +2124,7 @@ async function searchConnections(fromStation, toStation, options = {}) {
   </div>`;
 
   try {
-    const r = await fetch(`${API}/api/parse/connections/search`, {
+    const r = await fetch(`${API}/api/parse/connections/search?token=${TOKEN}`, {
       method: 'POST',
       headers: {...H, 'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -2434,7 +2139,7 @@ async function searchConnections(fromStation, toStation, options = {}) {
     renderConnectionResults(d, fromStation, toStation, targetEl);
   } catch(e) {
     targetEl.innerHTML = `<div class="conn-panel">
-      <div class="conn-header" style="color:var(--accent)">Connection search failed [ERR12]</div>
+      <div class="conn-header" style="color:var(--accent)">Connection search failed</div>
       <div style="padding:10px 12px;font-size:12px;color:var(--ink3)">${e.message}</div>
     </div>`;
   }
@@ -2525,7 +2230,7 @@ async function addConnectionSeg(conn) {
   };
 
   try {
-    const r = await fetch(`${API}/api/segments/`, {
+    const r = await fetch(`${API}/api/segments/?token=${TOKEN}`, {
       method: 'POST',
       headers: {...H, 'Content-Type': 'application/json'},
       body: JSON.stringify(body)
@@ -2536,7 +2241,7 @@ async function addConnectionSeg(conn) {
     // Hide conn panel
     document.getElementById('connResults').style.display = 'none';
   } catch(e) {
-    toast('Failed to add segment [ERR11]'); console.error('[ERR11]', e);
+    toast('Failed to add segment'); console.error(e);
   }
 }
 
@@ -2631,94 +2336,6 @@ function checkDateGuardrail(segDate, onProceed) {
 
   document.getElementById('guardrailOverlay').classList.add('open');
 }
-</script>
-
-<!-- ── AUTH SCREEN ─────────────────────────────────────────── -->
-<div class="auth-screen" id="authScreen" style="display:none">
-  <div class="auth-card">
-    <div class="auth-logo"><div class="auth-logo-dot"></div>Waypoint</div>
-
-    <!-- LOGIN -->
-    <div id="authLogin">
-      <div class="auth-title">Sign in</div>
-      <div class="auth-field"><label>Email</label>
-        <input type="email" id="loginEmail" autocomplete="email" placeholder="you@example.com">
-      </div>
-      <div class="auth-field"><label>Password</label>
-        <input type="password" id="loginPassword" autocomplete="current-password" placeholder="••••••••">
-      </div>
-      <button class="auth-btn" id="loginBtn" onclick="doLogin()">Sign in</button>
-      <div class="auth-error" id="loginError"></div>
-      <hr class="auth-divider">
-      <div class="auth-switch">
-        <a onclick="showForgot()">Forgot password?</a>
-        &nbsp;·&nbsp;
-        <a onclick="showRegister()">Create account</a>
-      </div>
-    </div>
-
-    <!-- REGISTER -->
-    <div id="authRegister" style="display:none">
-      <div class="auth-title">Create account</div>
-      <div class="auth-field"><label>Username</label>
-        <input type="text" id="regUsername" autocomplete="username" placeholder="yourname">
-      </div>
-      <div class="auth-field"><label>Email</label>
-        <input type="email" id="regEmail" autocomplete="email" placeholder="you@example.com">
-      </div>
-      <div class="auth-field"><label>Password</label>
-        <input type="password" id="regPassword" autocomplete="new-password" placeholder="Min 8 characters">
-      </div>
-      <button class="auth-btn" id="registerBtn" onclick="doRegister()">Create account</button>
-      <div class="auth-error" id="registerError"></div>
-      <div class="auth-success" id="registerSuccess"></div>
-      <hr class="auth-divider">
-      <div class="auth-switch">Already have an account? <a onclick="showLogin()">Sign in</a></div>
-    </div>
-
-    <!-- FORGOT PASSWORD -->
-    <div id="authForgot" style="display:none">
-      <div class="auth-title">Reset password</div>
-      <div class="auth-field"><label>Email</label>
-        <input type="email" id="forgotEmail" autocomplete="email" placeholder="you@example.com">
-      </div>
-      <button class="auth-btn" id="forgotBtn" onclick="doForgot()">Send reset link</button>
-      <div class="auth-error" id="forgotError"></div>
-      <div class="auth-success" id="forgotSuccess"></div>
-      <hr class="auth-divider">
-      <div class="auth-switch"><a onclick="showLogin()">← Back to sign in</a></div>
-    </div>
-
-    <!-- RESET PASSWORD (shown when ?token= in URL) -->
-    <div id="authReset" style="display:none">
-      <div class="auth-title">Set new password</div>
-      <div class="auth-field"><label>New password</label>
-        <input type="password" id="resetPassword" autocomplete="new-password" placeholder="Min 8 characters">
-      </div>
-      <div class="auth-field"><label>Confirm password</label>
-        <input type="password" id="resetPassword2" autocomplete="new-password" placeholder="Repeat password">
-      </div>
-      <button class="auth-btn" id="resetBtn" onclick="doReset()">Set new password</button>
-      <div class="auth-error" id="resetError"></div>
-      <div class="auth-success" id="resetSuccess"></div>
-    </div>
-  </div>
-</div>
-
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  ['loginEmail','loginPassword'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
-  });
-  ['regUsername','regEmail','regPassword'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('keydown', e => { if(e.key==='Enter') doRegister(); });
-  });
-  const fe = document.getElementById('forgotEmail');
-  if (fe) fe.addEventListener('keydown', e => { if(e.key==='Enter') doForgot(); });
-});
 </script>
 </body>
 </html>

@@ -4,6 +4,7 @@ from app.database import get_db, SessionLocal
 from app.models.models import Segment, Trip
 from app.schemas.schemas import SegmentCreate, SegmentUpdate, SegmentOut
 from app.routers.enrich import _enrich_segment
+from app.routers.deps import get_current_user
 import asyncio
 import logging
 
@@ -37,8 +38,20 @@ async def _run_enrich(segment_id: str):
 
 router = APIRouter(prefix="/api/segments", tags=["segments"])
 
+def _owned_segment(segment_id: str, user: dict, db: Session) -> Segment:
+    seg = db.query(Segment).filter(Segment.id == segment_id).first()
+    if not seg:
+        raise HTTPException(404, "Segment not found")
+    trip = db.query(Trip).filter(Trip.id == seg.trip_id).first()
+    if not trip or trip.user_id != user["id"]:
+        raise HTTPException(403, "Not your segment")
+    return seg
+
 @router.get("/", response_model=list[SegmentOut])
-def list_segments(trip_id: str, db: Session = Depends(get_db)):
+def list_segments(trip_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+    if not trip or trip.user_id != user["id"]:
+        raise HTTPException(403, "Not your trip")
     return (
         db.query(Segment)
         .filter(Segment.trip_id == trip_id)
@@ -47,24 +60,24 @@ def list_segments(trip_id: str, db: Session = Depends(get_db)):
     )
 
 @router.post("/", response_model=SegmentOut, status_code=201)
-def create_segment(body: SegmentCreate, bg: BackgroundTasks, db: Session = Depends(get_db)):
-    if not db.query(Trip).filter(Trip.id == body.trip_id).first():
+def create_segment(body: SegmentCreate, bg: BackgroundTasks, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    trip = db.query(Trip).filter(Trip.id == body.trip_id).first()
+    if not trip:
         raise HTTPException(404, "Trip not found")
+    if trip.user_id != user["id"]:
+        raise HTTPException(403, "Not your trip")
     seg = Segment(**body.model_dump())
     db.add(seg); db.commit(); db.refresh(seg)
     schedule_enrich(bg, seg.id)
     return seg
 
 @router.get("/{segment_id}", response_model=SegmentOut)
-def get_segment(segment_id: str, db: Session = Depends(get_db)):
-    seg = db.query(Segment).filter(Segment.id == segment_id).first()
-    if not seg: raise HTTPException(404, "Segment not found")
-    return seg
+def get_segment(segment_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    return _owned_segment(segment_id, user, db)
 
 @router.patch("/{segment_id}", response_model=SegmentOut)
-def update_segment(segment_id: str, body: SegmentUpdate, bg: BackgroundTasks, db: Session = Depends(get_db)):
-    seg = db.query(Segment).filter(Segment.id == segment_id).first()
-    if not seg: raise HTTPException(404, "Segment not found")
+def update_segment(segment_id: str, body: SegmentUpdate, bg: BackgroundTasks, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    seg = _owned_segment(segment_id, user, db)
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(seg, k, v)
     db.commit(); db.refresh(seg)
@@ -72,7 +85,6 @@ def update_segment(segment_id: str, body: SegmentUpdate, bg: BackgroundTasks, db
     return seg
 
 @router.delete("/{segment_id}", status_code=204)
-def delete_segment(segment_id: str, db: Session = Depends(get_db)):
-    seg = db.query(Segment).filter(Segment.id == segment_id).first()
-    if not seg: raise HTTPException(404, "Segment not found")
+def delete_segment(segment_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    seg = _owned_segment(segment_id, user, db)
     db.delete(seg); db.commit()

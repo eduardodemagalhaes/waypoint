@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os, subprocess
 
 from app.database import Base, engine
-from app.routers import trips, segments, emails, parse, lookup, enrich
+from app.routers import trips, segments, emails, parse, lookup, enrich, auth
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,15 +19,41 @@ app.add_middleware(
 
 SECRET_TOKEN = os.getenv("SECRET_TOKEN", "change_me")
 
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired as _SE
+import os as _os
+
+def _decode_session(token: str):
+    secret = _os.getenv("SESSION_SECRET", "changeme")
+    try:
+        return URLSafeTimedSerializer(secret).loads(token, max_age=60*60*24*30)
+    except (BadSignature, _SE):
+        return None
+
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    if not request.url.path.startswith("/api"):
+    path = request.url.path
+
+    # Static files and health — always public
+    if not path.startswith("/api"):
         return await call_next(request)
+
+    # Auth endpoints — always public
+    if path.startswith("/api/auth"):
+        return await call_next(request)
+
+    from fastapi.responses import JSONResponse
+
+    # Check session cookie first
+    session_token = request.cookies.get("wp_session")
+    if session_token and _decode_session(session_token):
+        return await call_next(request)
+
+    # Fall back to legacy SECRET_TOKEN for CLI / email ingest scripts
     token = request.headers.get("X-Token") or request.query_params.get("token")
-    if token != SECRET_TOKEN:
-        from fastapi.responses import JSONResponse
-        return JSONResponse({"detail": "Unauthorized"}, status_code=401)
-    return await call_next(request)
+    if token == SECRET_TOKEN:
+        return await call_next(request)
+
+    return JSONResponse({"detail": "Unauthorized"}, status_code=401)
 
 app.include_router(trips.router)
 app.include_router(segments.router)
@@ -35,6 +61,7 @@ app.include_router(emails.router)
 app.include_router(parse.router)
 app.include_router(lookup.router)
 app.include_router(enrich.router)
+app.include_router(auth.router)
 
 @app.get("/health")
 def health():
