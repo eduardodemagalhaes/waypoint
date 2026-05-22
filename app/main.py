@@ -8,6 +8,17 @@ from app.routers import trips, segments, emails, parse, lookup, enrich, auth
 
 Base.metadata.create_all(bind=engine)
 
+# ── DB migrations (safe, idempotent) ──────────────────────────────────────────
+def _run_migrations():
+    from sqlalchemy import inspect, text
+    with engine.connect() as conn:
+        cols = [c["name"] for c in inspect(engine).get_columns("users")] if inspect(engine).has_table("users") else []
+        if "is_disabled" not in cols and cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN is_disabled INTEGER NOT NULL DEFAULT 0"))
+            conn.commit()
+
+_run_migrations()
+
 app = FastAPI(title="Waypoint", version="0.1.0")
 
 app.add_middleware(

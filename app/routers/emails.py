@@ -228,6 +228,156 @@ class ReparseRequest(BaseModel):
     trip_id: Optional[str] = None
 
 
+
+# ── Ingest confirmation reply ─────────────────────────────────────────────────
+
+SEGMENT_ICONS = {
+    "flight":   "✈",
+    "train":    "🚄",
+    "hotel":    "🏨",
+    "car":      "🚗",
+    "activity": "🎟",
+    "other":    "📌",
+}
+
+def _fmt_segment_row(seg_data: dict) -> str:
+    """One-line summary of a segment for the reply email."""
+    icon  = SEGMENT_ICONS.get(seg_data.get("type", "other"), "📌")
+    typ   = (seg_data.get("type") or "segment").capitalize()
+    orig  = seg_data.get("origin") or ""
+    dest  = seg_data.get("destination") or ""
+    route = f"{orig} → {dest}" if orig and dest else (orig or dest or "")
+    date  = ""
+    dep   = seg_data.get("departs_at") or seg_data.get("check_in") or ""
+    if dep and "T" in dep:
+        date = dep[:10]
+    elif dep:
+        date = dep[:10]
+    carrier = seg_data.get("carrier") or seg_data.get("hotel_name") or ""
+    ref     = seg_data.get("confirmation_ref") or ""
+
+    parts = [p for p in [route, carrier, ref] if p]
+    detail = " · ".join(parts)
+    line = f"{icon} {typ}"
+    if date:    line += f" &nbsp;·&nbsp; {date}"
+    if detail:  line += f" &nbsp;·&nbsp; {detail}"
+    return line
+
+
+def send_ingest_reply(to: str, status: str, subject: str,
+                      segments_data: list = None, trip_name: str = None,
+                      error: str = None):
+    """Reply to sender summarising what Waypoint did with their forwarded email."""
+    app_url = FRONTEND_URL
+    reply_subject = f"Re: {subject}" if subject else "Your Waypoint itinerary update"
+
+    if status == "ok" and segments_data:
+        count = len(segments_data)
+        heading = f"Added {count} segment{'s' if count > 1 else ''} to your itinerary"
+        trip_line = (
+            f'<p style="margin:0 0 20px;font-size:13px;color:#8a847c;">'
+            f'Trip: <strong style="color:#4a4540">{trip_name}</strong></p>'
+        ) if trip_name else ""
+        seg_rows = "".join(
+            '<li style="padding:6px 0;border-bottom:1px solid #e0d8cc;'
+            'font-size:14px;color:#4a4540;">'
+            + _fmt_segment_row(s) + "</li>"
+            for s in segments_data
+        )
+        body_html = (
+            '<p style="margin:0 0 16px;font-size:15px;color:#4a4540;line-height:1.7;">'
+            "We parsed your forwarded email and added the following to Waypoint:"
+            "</p>"
+            + trip_line
+            + '<ul style="margin:0 0 8px;padding:0;list-style:none;">'
+            + seg_rows + "</ul>"
+        )
+        plain = (
+            f"We parsed your forwarded email and added {count} segment(s) to Waypoint"
+            + (f" ({trip_name})" if trip_name else "") + ":\n\n"
+            + "\n".join(
+                "  - " + _fmt_segment_row(s).replace("&nbsp;", " ").replace("·", "|")
+                for s in segments_data
+            )
+            + f"\n\nView your trip: {app_url}\n\n— Waypoint"
+        )
+        footnote = "Questions or corrections? Reply to this email or edit directly in Waypoint."
+
+    elif status == "no_segments":
+        heading = "We couldn\u2019t find any travel details"
+        body_html = (
+            '<p style="margin:0 0 16px;font-size:15px;color:#4a4540;line-height:1.7;">'
+            "We received your forwarded email but couldn\u2019t extract any travel segments from it."
+            "</p>"
+            '<p style="margin:0;font-size:15px;color:#4a4540;line-height:1.7;">'
+            "This can happen with heavily formatted emails or scanned documents. "
+            "You can add segments manually in the app, or try forwarding a plain-text version."
+            "</p>"
+        )
+        plain = (
+            "We received your forwarded email but couldn't extract any travel segments.\n\n"
+            "You can add segments manually in the app, or try forwarding a plain-text version.\n\n"
+            f"Open Waypoint: {app_url}\n\n\u2014 Waypoint"
+        )
+        footnote = "If this keeps happening, reply to this email and we\u2019ll take a look."
+
+    elif status == "no_trip":
+        heading = "Couldn\u2019t match your email to a trip"
+        body_html = (
+            '<p style="margin:0 0 16px;font-size:15px;color:#4a4540;line-height:1.7;">'
+            "We parsed your email but couldn\u2019t find a matching trip in your account."
+            "</p>"
+            '<p style="margin:0;font-size:15px;color:#4a4540;line-height:1.7;">'
+            "Open Waypoint to create a trip first, then forward the email again \u2014 "
+            "or add the segment manually."
+            "</p>"
+        )
+        plain = (
+            "We parsed your email but couldn't find a matching trip in your account.\n\n"
+            "Create a trip in Waypoint first, then forward the email again.\n\n"
+            f"Open Waypoint: {app_url}\n\n\u2014 Waypoint"
+        )
+        footnote = "Need help? Reply to this email."
+
+    else:
+        heading = "Something went wrong"
+        body_html = (
+            '<p style="margin:0 0 16px;font-size:15px;color:#4a4540;line-height:1.7;">'
+            "We received your email but ran into a problem while processing it."
+            "</p>"
+            '<p style="margin:0;font-size:15px;color:#4a4540;line-height:1.7;">'
+            "Please try forwarding it again, or add your travel details manually in the app."
+            "</p>"
+        )
+        plain = (
+            "We received your email but ran into a problem processing it.\n\n"
+            "Please try forwarding it again, or add your travel details manually.\n\n"
+            f"Open Waypoint: {app_url}\n\n\u2014 Waypoint"
+        )
+        footnote = "If this keeps happening, reply to this email and we\u2019ll investigate."
+
+    html = _email_template(
+        heading=heading,
+        body_html=body_html,
+        cta_url=app_url,
+        cta_label="Open Waypoint",
+        footnote=footnote,
+    )
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = reply_subject
+        msg["From"]    = f"Waypoint <{FROM_EMAIL}>"
+        msg["To"]      = to
+        msg["Reply-To"] = "Waypoint <waypoint@emdm.ch>"
+        msg.attach(MIMEText(plain, "plain"))
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP("localhost") as s:
+            s.sendmail(FROM_EMAIL, [to], msg.as_string())
+    except Exception as e:
+        import logging
+        logging.getLogger("waypoint").warning(f"Could not send ingest reply to {to}: {e}")
+
+
 @router.post("/ingest", response_model=IngestResponse)
 def ingest_email(body: IngestRequest, db: Session = Depends(get_db)):
     existing = db.query(RawEmail).filter(RawEmail.message_id == body.message_id).first()
@@ -250,9 +400,11 @@ def ingest_email(body: IngestRequest, db: Session = Depends(get_db)):
         segments_data = call_gpt(body.subject, body.body_text)
     except Exception as e:
         raw.parse_status = "failed"; db.commit()
+        send_ingest_reply(sender_clean, "failed", body.subject)
         return IngestResponse(ok=False, message_id=body.message_id, parse_status="failed", error=str(e))
     if not segments_data:
         raw.parse_status = "no_segments"; db.commit()
+        send_ingest_reply(sender_clean, "no_segments", body.subject)
         return IngestResponse(ok=True, message_id=body.message_id, parse_status="no_segments", segments_created=0)
     trip_id = body.trip_id
     if not trip_id:
@@ -260,6 +412,7 @@ def ingest_email(body: IngestRequest, db: Session = Depends(get_db)):
         trip_id = trip.id if trip else None
     if not trip_id:
         raw.parse_status = "failed"; db.commit()
+        send_ingest_reply(sender_clean, "no_trip", body.subject)
         return IngestResponse(ok=False, message_id=body.message_id, parse_status="failed", error="No trip found for this user")
     raw.trip_id = trip_id
     cols = Segment.__table__.columns.keys()
@@ -270,6 +423,14 @@ def ingest_email(body: IngestRequest, db: Session = Depends(get_db)):
         seg.meta = seg_data.get("meta", {}); seg.meta["source"] = "email"
         db.add(seg); created += 1
     raw.parse_status = "ok"; db.commit()
+    trip_obj = db.query(Trip).filter(Trip.id == trip_id).first()
+    send_ingest_reply(
+        to=sender_clean,
+        status="ok",
+        subject=body.subject,
+        segments_data=segments_data,
+        trip_name=trip_obj.name if trip_obj else None,
+    )
     return IngestResponse(ok=True, message_id=body.message_id, trip_id=trip_id, segments_created=created)
 
 

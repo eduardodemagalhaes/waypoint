@@ -234,7 +234,7 @@ class LoginRequest(BaseModel):
 @router.post("/login")
 async def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)):
     row = db.execute(
-        text("SELECT id, username, email, password_hash, is_verified, is_admin FROM users WHERE email=:email"),
+        text("SELECT id, username, email, password_hash, is_verified, is_admin, is_disabled FROM users WHERE email=:email"),
         {"email": body.email}
     ).mappings().fetchone()
 
@@ -244,6 +244,8 @@ async def login(body: LoginRequest, response: Response, db: Session = Depends(ge
         raise HTTPException(401, "Invalid email or password")
     if not row["is_verified"]:
         raise HTTPException(403, "Please verify your email address before logging in")
+    if row["is_disabled"]:
+        raise HTTPException(403, "This account has been disabled")
 
     token = make_session(row["id"])
     response.set_cookie(
