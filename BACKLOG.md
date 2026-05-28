@@ -117,6 +117,17 @@ Next free: **ERR13**
 - Trenitalia (Italy): partially covered by transport.opendata.ch already
 - All self-hostable as Docker containers on the VPS
 
+### 9. OpenAI token usage log (low priority)
+- Local log of OpenAI API calls across all emdm.ch apps (Waypoint, Flights, future)
+- Captures: timestamp, app, endpoint, model, input/output tokens, computed cost, success/error
+- Shared SQLite DB (e.g. `/opt/emdm/shared/usage.db`) with one `api_usage` table
+- Tiny dashboard route to show totals by app / by day / by endpoint
+- Rationale: per-key usage is already visible in OpenAI's dashboard if separate keys
+  are used per app. This log adds per-endpoint granularity (which Waypoint feature
+  burns the most tokens — `/parse/plan` vs `/parse/assist/edit` vs enrichment).
+- Only worth building if/when consolidating to a single key or curious about
+  feature-level cost breakdown.
+
 ---
 
 ## Recently completed (2026-05-18)
@@ -133,3 +144,32 @@ Next free: **ERR13**
 - Dialog quality log: `logs/dialog.log` (rotating, 10MB)
 - No-cache headers on index.html
 - Train timetable verification: `verify_train_time()` cross-checks all train segments against DB Vendo / SBB before showing summary card — corrects fictional times, fills carrier, shows ✓/⚠ banner
+
+### 10. Uncertain email → user confirmation flow
+- When `find_best_trip` returns no match AND there are existing trips in the account,
+  before auto-creating, email the user with:
+  - "We parsed your booking but weren't sure which trip to add it to."
+  - List of candidate trips (name + dates) as tappable links → each resolves the segment into that trip
+  - "Or create a new trip" link → triggers auto-create
+  - Implement as signed one-click tokens (no login required), expire after 48h
+  - Backend: `POST /api/emails/resolve/{token}` → assigns pending segment to chosen trip
+
+### 11. Orphan segments tray
+- Segments parsed from email but not yet assigned to a trip land in an "Orphan" holding area
+- Visible in the UI as a tray/drawer (e.g. bottom of sidebar or dedicated section)
+- Each orphan card has: "Add to trip →" dropdown + "Create new trip" + "Discard"
+- Backend: `trip_id = NULL` segments with `parse_status = 'pending_assignment'`
+- Ties into #10: the confirmation email links resolve orphans
+
+### 12. Hide PDF upload drop zone on mobile
+- The upload area at the top of the trip view is not useful on mobile
+- Hide it on viewports < ~600px wide (CSS media query, not remove entirely)
+- Keep visible on desktop where drag-and-drop is practical
+
+### 13. Avatar upload
+- User can upload a profile photo from the Profile page
+- Stored server-side (e.g. `/opt/emdm/waypoint-avatars/<user_id>.jpg`, served as static)
+- Backend: `POST /api/auth/avatar` — accepts image, resizes to 128×128, saves
+- Frontend: tap the avatar circle in Profile to open file picker; preview updates immediately
+- Avatar shown in header (28px circle) and sidebar footer (22px circle)
+- Fallback: initials on accent background (already implemented)

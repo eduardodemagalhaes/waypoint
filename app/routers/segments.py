@@ -10,8 +10,18 @@ import logging
 
 log = logging.getLogger("waypoint.segments")
 
+_last_enrich_time = 0.0
+
 async def _bg_enrich(segment_id: str):
     """Run enrichment in background after segment create/update."""
+    global _last_enrich_time
+    import time as _time
+    # Respect AeroDataBox 1 req/sec rate limit
+    elapsed = _time.monotonic() - _last_enrich_time
+    if elapsed < 1.1:
+        await __import__('asyncio').sleep(1.1 - elapsed)
+    _last_enrich_time = _time.monotonic()
+
     db = SessionLocal()
     try:
         seg = db.query(Segment).filter(Segment.id == segment_id).first()
@@ -19,8 +29,31 @@ async def _bg_enrich(segment_id: str):
             return
         enrichment = await _enrich_segment(seg)
         if enrichment.get("enrich_status") not in ("skipped", None):
+            # Write back segment-column fields (prefixed with _) if segment lacks them
+            if enrichment.get("_arrives_at") and not seg.arrives_at:
+                # AviationStack free tier returns today's flight, not the actual future date.
+                # Use only the TIME portion, anchored to the segment's own departure date.
+                try:
+                    from datetime import datetime as _dt2, timedelta as _td2
+                    arr_time = enrichment["_arrives_at"][11:16]  # "HH:MM"
+                    dep_date = (seg.departs_at or "")[:10]       # "YYYY-MM-DD"
+                    if dep_date and arr_time:
+                        dep_time = (seg.departs_at or "")[ 11:16]
+                        # If arrival time < departure time, flight lands next day
+                        next_day = arr_time < dep_time
+                        arr_date = dep_date
+                        if next_day:
+                            d = _dt2.fromisoformat(dep_date) + _td2(days=1)
+                            arr_date = d.strftime("%Y-%m-%d")
+                        seg.arrives_at = f"{arr_date}T{arr_time}:00"
+                except Exception:
+                    pass
+            if enrichment.get("_arrives_tz") and not seg.arrives_tz:
+                seg.arrives_tz = enrichment["_arrives_tz"]
+            # Strip private keys before storing in meta
+            meta_enrichment = {k: v for k, v in enrichment.items() if not k.startswith("_")}
             meta = dict(seg.meta or {})
-            meta.update(enrichment)
+            meta.update(meta_enrichment)
             seg.meta = meta
             db.commit()
             log.info("auto-enriched segment %s (%s) → %s", segment_id[:8], seg.type, enrichment.get("enrich_status"))
@@ -39,12 +72,25 @@ async def _run_enrich(segment_id: str):
 router = APIRouter(prefix="/api/segments", tags=["segments"])
 
 def _owned_segment(segment_id: str, user: dict, db: Session) -> Segment:
+    from sqlalchemy import text as _text
     seg = db.query(Segment).filter(Segment.id == segment_id).first()
     if not seg:
         raise HTTPException(404, "Segment not found")
-    trip = db.query(Trip).filter(Trip.id == seg.trip_id).first()
-    if not trip or trip.user_id != user["id"]:
-        raise HTTPException(403, "Not your segment")
+    if seg.trip_id:
+        # Normal segment: verify via trip ownership
+        trip = db.query(Trip).filter(Trip.id == seg.trip_id).first()
+        if not trip or trip.user_id != user["id"]:
+            raise HTTPException(403, "Not your segment")
+    else:
+        # Orphan segment: verify via raw_email sender
+        if seg.raw_email_id:
+            row = db.execute(_text(
+                "SELECT from_address FROM raw_emails WHERE id=:id"
+            ), {"id": seg.raw_email_id}).fetchone()
+            if not row or user["email"].lower() not in row[0].lower():
+                raise HTTPException(403, "Not your segment")
+        else:
+            raise HTTPException(403, "Not your segment")
     return seg
 
 @router.get("/", response_model=list[SegmentOut])

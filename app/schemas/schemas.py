@@ -22,12 +22,12 @@ class SegmentCreate(SegmentBase):
     raw_email_id: Optional[str] = None
 
 class SegmentUpdate(SegmentBase):
-    pass
+    trip_id: Optional[str] = None
 
 class SegmentOut(SegmentBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
-    trip_id: str
+    trip_id: Optional[str] = None
     raw_email_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -51,10 +51,18 @@ class TripUpdate(BaseModel):
     location: Optional[str] = None
     description: Optional[str] = None
 
+class TripListOut(TripBase):
+    """Lightweight trip summary for list endpoint — no segments embedded."""
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    created_at: datetime
+    calendar_token: Optional[str] = None
+
 class TripOut(TripBase):
     model_config = ConfigDict(from_attributes=True)
     id: str
     created_at: datetime
+    calendar_token: Optional[str] = None
     segments: list[SegmentOut] = []
 
 class RawEmailOut(BaseModel):

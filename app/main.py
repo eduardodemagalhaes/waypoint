@@ -4,7 +4,8 @@ from fastapi.staticfiles import StaticFiles
 import os, subprocess
 
 from app.database import Base, engine
-from app.routers import trips, segments, emails, parse, lookup, enrich, auth, calendar
+from app.routers import trips, segments, emails, lookup, enrich, auth
+from app.routers import parse_dialog, parse_assist, parse_planner, parse_connect, calendar
 
 Base.metadata.create_all(bind=engine)
 
@@ -16,6 +17,13 @@ def _run_migrations():
         if "is_disabled" not in cols and cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN is_disabled INTEGER NOT NULL DEFAULT 0"))
             conn.commit()
+        # Indexes (IF NOT EXISTS = safe to re-run)
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_trips_user_id ON trips(user_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_segments_trip_id ON segments(trip_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_segments_departs ON segments(trip_id, departs_at)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_email_tokens_user ON email_tokens(user_id, type)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_raw_emails_trip ON raw_emails(trip_id)"))
+        conn.commit()
         if "calendar_token" not in cols and cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN calendar_token TEXT"))
             conn.commit()
@@ -82,7 +90,10 @@ async def auth_middleware(request: Request, call_next):
 app.include_router(trips.router)
 app.include_router(segments.router)
 app.include_router(emails.router)
-app.include_router(parse.router)
+app.include_router(parse_dialog.router)
+app.include_router(parse_assist.router)
+app.include_router(parse_planner.router)
+app.include_router(parse_connect.router)
 app.include_router(lookup.router)
 app.include_router(enrich.router)
 app.include_router(auth.router)

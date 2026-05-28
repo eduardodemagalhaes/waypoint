@@ -6,6 +6,7 @@ POST /api/trips/{trip_id}/enrich — enrich all segments in a trip
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
+from app.routers.deps import get_current_user
 from app.models.models import Segment
 from app.schemas.schemas import SegmentOut
 import httpx, logging
@@ -349,104 +350,236 @@ out tags;
         "enrich_at":      datetime.utcnow().isoformat(),
     }
 
+
+
+# Gate prefix → terminal name for airports where this is deterministic
+_GATE_TO_TERMINAL = {
+    "ZRH": lambda g: (
+        "A" if g and g[0] in ("A",) and int("".join(filter(str.isdigit,g)) or 0) <= 59
+        else "B" if g and g[0] == "B"
+        else "D" if g and g[0] == "D"
+        else "E" if g and g[0] == "E"
+        else None
+    ),
+    "LHR": lambda g: (
+        "2" if g and g[:2] in ("B1","B2","B3","B4","B5","C1","C2","C3","C4","C5")
+        else "5" if g and g[0] == "A"
+        else "3" if g and g[:2] in ("G1","G2","H1","H2")
+        else None
+    ),
+    "FRA": lambda g: "1" if g and g[0] in ("A","B","C","Z") else "2" if g and g[0] in ("D","E") else None,
+}
+
+async def _fetch_recent_gate(flight_iata: str, airport_iata: str, is_departure: bool, adb_key: str) -> dict:
+    """
+    Query the last few days of the same flight to get a recent gate/terminal hint.
+    Returns {"gate": ..., "terminal": ..., "hint_date": ..., "hint_status": ...} or {}.
+    """
+    import httpx as _hx
+    from datetime import date as _d, timedelta as _td
+    for delta in range(0, 5):
+        day = (_d.today() - _td(days=delta)).isoformat()
+        try:
+            async with _hx.AsyncClient(timeout=6) as c:
+                r = await c.get(
+                    f"https://aerodatabox.p.rapidapi.com/flights/number/{flight_iata}/{day}",
+                    headers={"X-RapidAPI-Key": adb_key, "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"}
+                )
+            if r.status_code == 429:
+                import asyncio as _aio; await _aio.sleep(1.2); continue
+            if r.status_code not in (200,): continue
+            data = r.json()
+            f = (data[0] if isinstance(data, list) and data else data) or {}
+            side = f.get("departure" if is_departure else "arrival", {})
+            gate = side.get("gate")
+            term = side.get("terminal")
+            # Derive terminal from gate if not returned
+            if not term and gate and airport_iata in _GATE_TO_TERMINAL:
+                term = _GATE_TO_TERMINAL[airport_iata](gate)
+            if gate or term:
+                return {"gate": gate, "terminal": term,
+                        "hint_date": day, "hint_status": f.get("status")}
+        except Exception:
+            continue
+    return {}
+
+def _log_api_call(service: str, endpoint: str, flight: str = None, status: str = "ok"):
+    """Record an API call for usage tracking."""
+    try:
+        from app.database import SessionLocal as _SL
+        from datetime import datetime as _dt2, timezone as _tz2
+        db = _SL()
+        db.execute(__import__("sqlalchemy").text(
+            "INSERT INTO api_usage (service, endpoint, flight, status, called_at) "
+            "VALUES (:svc, :ep, :fl, :st, :at)"
+        ), {"svc": service, "ep": endpoint, "fl": flight,
+            "st": status, "at": _dt2.now(_tz2.utc).isoformat()})
+        db.commit(); db.close()
+    except Exception:
+        pass  # never let logging break enrichment
+
+
 async def _enrich_flight(seg: Segment) -> dict:
-    """
-    Enrich a flight segment using AviationStack live data.
-    Free tier: no date filter, only currently-scheduled/live flights.
-    Falls back to schema-normalised if flight not found.
-    """
+    """Enrich a flight segment using AeroDataBox (primary) + AviationStack (live delays fallback)."""
     import re as _re, os as _os
 
-    flight_keys = ["cabin_class", "seat", "boarding_time", "terminal_departure",
-                   "terminal_arrival", "gate", "baggage_allowance", "fare_type",
-                   "ticket_number", "price", "payment_card", "source"]
-    base = {k: None for k in flight_keys if k not in (seg.meta or {})}
+    base = {k: None for k in [
+        "terminal_departure","terminal_arrival","gate","gate_arrival",
+        "boarding_time","baggage_claim","delay_minutes","aircraft",
+        "cabin_class","fare_type","seat","baggage_allowance","ticket_number",
+        "payment_card","checkin_time","checkout_time","address","phone",
+        "platform_arrival","platform_departure","room_type","rate_plan",
+        "nights","loyalty_points","cancellation_policy","class","coach",
+        "train_number","price",
+    ]}
 
-    # Extract IATA code from carrier string or existing meta
     carrier = seg.carrier or ""
-    flight_iata = ((seg.meta or {}).get("flight_iata") or
-                   (seg.meta or {}).get("flight_number"))
+    fm = _re.search(r'\b([A-Z]{2}\d{2,4})\b', carrier)
+    flight_iata = (fm.group(1) if fm else None) or (seg.meta or {}).get("flight_iata")
     if not flight_iata:
-        m = _re.search(r"\b([A-Z]{2}\d{2,4})\b", carrier)
-        if m:
-            flight_iata = m.group(1)
+        return {**base, "enrich_status": "needs_flight_number",
+                "enrich_reason": "Add a flight number (e.g. LX1742) to enable enrichment"}
 
-    if not flight_iata:
-        return {
-            **base,
-            "enrich_status": "needs_flight_number",
-            "enrich_reason": "No flight number — edit carrier field to include it (e.g. \'Swiss LX318\')",
-            "enrich_at":     datetime.utcnow().isoformat(),
-        }
+    dep_date = (seg.departs_at or "")[:10]
+    if not dep_date:
+        return {**base, "enrich_status": "skipped", "flight_iata": flight_iata}
 
-    # Try AviationStack live lookup (free tier — no date filter)
-    key = _os.getenv("AVIATIONSTACK_KEY")
-    if key:
+    # ── AeroDataBox (scheduled data for any date) ─────────────────────────────
+    adb_key = _os.getenv("AERODATABOX_KEY")
+    if adb_key:
         try:
-            async with httpx.AsyncClient(timeout=8) as client:
-                resp = await client.get(
-                    "http://api.aviationstack.com/v1/flights",
-                    params={"access_key": key, "flight_iata": flight_iata.upper(), "limit": 1}
+            import httpx as _httpx
+            async with _httpx.AsyncClient(timeout=8) as c:
+                r = await c.get(
+                    f"https://aerodatabox.p.rapidapi.com/flights/number/{flight_iata}/{dep_date}",
+                    headers={
+                        "X-RapidAPI-Key":  adb_key,
+                        "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com",
+                    }
                 )
-            if resp.status_code == 200:
-                flights = resp.json().get("data", [])
-                if flights:
+            _log_api_call("aerodatabox", f"flights/number/{flight_iata}/{dep_date}",
+                          flight_iata, "ok" if r.status_code == 200 else str(r.status_code))
+            if r.status_code == 200:
+                data = r.json()
+                flights = data if isinstance(data, list) else [data]
+                if flights and flights[0]:
                     f   = flights[0]
                     dep = f.get("departure", {})
                     arr = f.get("arrival",   {})
-                    dep_terminal = dep.get("terminal")
-                    dep_gate     = dep.get("gate")
-                    arr_terminal = arr.get("terminal")
-                    arr_gate     = arr.get("gate")
-                    arr_baggage  = arr.get("baggage")
-                    delay_min    = arr.get("delay") or dep.get("delay")
+                    ac  = f.get("aircraft",  {}) or {}
 
-                    # ZRH has no terminal designations — gate prefix is the concourse
-                    # Gate AB → Concourse A/B, Gate E → Concourse E etc.
-                    if not dep_terminal and dep_gate and dep.get("iata") == "ZRH":
-                        prefix = dep_gate.rstrip("0123456789 ")
-                        dep_terminal = f"Concourse {prefix}" if prefix else None
+                    arr_sched = arr.get("scheduledTime", {}).get("local", "")
+                    arr_pred  = arr.get("predictedTime", {}).get("local", "")
+                    arr_local = arr_pred or arr_sched
 
-                    # Only show delay if segment departs within 24h
-                    # (free tier has no date filter — data may be today's occurrence)
-                    seg_dt = _parse_dt(seg.departs_at)
-                    now    = datetime.utcnow()
-                    within_24h = seg_dt and abs((seg_dt - now).total_seconds()) < 86400
+                    _arrives_at = None
+                    _arrives_tz = (arr.get("airport") or {}).get("timeZone") or None
+                    if arr_local:
+                        try:
+                            _arrives_at = arr_local[:16].replace(" ", "T") + ":00"
+                        except Exception:
+                            pass
 
-                    enriched = {
+                    delay_min = None
+                    if arr_sched and arr_pred and arr_sched[:16] != arr_pred[:16]:
+                        try:
+                            from datetime import datetime as _dt
+                            s1 = _dt.fromisoformat(arr_sched[:16].replace(" ", "T"))
+                            s2 = _dt.fromisoformat(arr_pred[:16].replace(" ", "T"))
+                            delay_min = int((s2 - s1).total_seconds() / 60)
+                        except Exception:
+                            pass
+
+                    dep_apt  = (dep.get("airport") or {}).get("iata", "")
+                    arr_apt  = (arr.get("airport") or {}).get("iata", "")
+                    dep_term = dep.get("terminal")
+                    dep_gate = dep.get("gate")
+                    arr_term = arr.get("terminal")
+                    arr_gate = arr.get("gate")
+
+                    # If terminal missing, query recent occurrences for a hint
+                    dep_hint = {}
+                    arr_hint = {}
+                    if not dep_term and not dep_gate and dep_apt:
+                        dep_hint = await _fetch_recent_gate(flight_iata, dep_apt, True, adb_key)
+                    if not arr_term and not arr_gate and arr_apt:
+                        import asyncio as _aio; await _aio.sleep(1.1)
+                        arr_hint = await _fetch_recent_gate(flight_iata, arr_apt, False, adb_key)
+                    if dep_hint:
+                        dep_term = dep_term or dep_hint.get("terminal")
+                        dep_gate = dep_gate or dep_hint.get("gate")
+                    if arr_hint:
+                        arr_term = arr_term or arr_hint.get("terminal")
+                        arr_gate = arr_gate or arr_hint.get("gate")
+
+                    return {
                         **base,
-                        "flight_number":      flight_iata,
                         "flight_iata":        flight_iata,
-                        "enrich_status":      "ok",
-                        "enrich_source":      "aviationstack-live",
-                        "enrich_at":          datetime.utcnow().isoformat(),
-                        "terminal_departure": dep_terminal,
-                        "terminal_arrival":   arr_terminal,
+                        "flight_number":      flight_iata,
+                        "aircraft":           ac.get("model") or ac.get("iata") or None,
+                        "airline":            (f.get("airline") or {}).get("name"),
+                        "terminal_departure": dep_term,
+                        "terminal_arrival":   arr_term,
+                        "terminal_hint":      bool(dep_hint or arr_hint),
                         "gate":               dep_gate,
                         "gate_arrival":       arr_gate,
-                        "baggage_claim":      arr_baggage,
-                        "delay_minutes":      delay_min if within_24h else None,
-                        "aircraft":           (f.get("aircraft") or {}).get("iata"),
+                        "baggage_claim":      arr.get("baggageBelt"),
+                        "delay_minutes":      delay_min,
+                        "flight_status":      f.get("status"),
+                        "distance_km":        round((f.get("greatCircleDistance") or {}).get("km", 0)) or None,
+                        "last_updated":       f.get("lastUpdatedUtc"),
+                        "enrich_status":      "ok",
+                        "enrich_source":      "aerodatabox",
+                        "enrich_at":          datetime.utcnow().isoformat(),
+                        "_arrives_at":        _arrives_at,
+                        "_arrives_tz":        _arrives_tz,
                     }
-                    # Preserve existing meta values that are richer
-                    existing = seg.meta or {}
-                    for k in ["cabin_class","baggage_allowance","fare_type",
-                              "ticket_number","price","payment_card","seat"]:
-                        if existing.get(k) and not enriched.get(k):
-                            enriched[k] = existing[k]
-                    return {k: v for k, v in enriched.items() if v is not None or k in base}
-        except Exception as e:
-            log.warning("AviationStack lookup failed for %s: %s", flight_iata, e)
+        except Exception as _e:
+            import logging as _log
+            _log.getLogger("waypoint").warning(f"AeroDataBox error for {flight_iata}/{dep_date}: {_e}")
 
-    # Fallback: schema-normalised (no live data available)
-    return {
-        **base,
-        "flight_number":  flight_iata,
-        "flight_iata":    flight_iata,
-        "enrich_status":  "ok",
-        "enrich_source":  "schema-normalised",
-        "enrich_at":      datetime.utcnow().isoformat(),
-    }
+    # ── AviationStack fallback (live/today only) ──────────────────────────────
+    as_key = _os.getenv("AVIATIONSTACK_KEY")
+    if not as_key:
+        return {**base, "enrich_status": "schema-normalised",
+                "flight_iata": flight_iata, "flight_number": flight_iata,
+                "enrich_source": "schema-normalised",
+                "enrich_at": datetime.utcnow().isoformat()}
+    try:
+        import httpx as _httpx
+        async with _httpx.AsyncClient(timeout=8) as c:
+            r = await c.get("http://api.aviationstack.com/v1/flights",
+                params={"access_key": as_key, "flight_iata": flight_iata, "limit": 1})
+        flights = r.json().get("data", [])
+        if not flights:
+            return {**base, "enrich_status": "schema-normalised",
+                    "flight_iata": flight_iata, "flight_number": flight_iata,
+                    "enrich_source": "schema-normalised",
+                    "enrich_at": datetime.utcnow().isoformat()}
+        f   = flights[0]
+        dep = f.get("departure", {})
+        arr = f.get("arrival",   {})
+        return {
+            **base,
+            "flight_iata":        flight_iata,
+            "flight_number":      flight_iata,
+            "enrich_status":      "ok",
+            "enrich_source":      "aviationstack-live",
+            "enrich_at":          datetime.utcnow().isoformat(),
+            "terminal_departure": dep.get("terminal"),
+            "terminal_arrival":   arr.get("terminal"),
+            "gate":               dep.get("gate"),
+            "gate_arrival":       arr.get("gate"),
+            "baggage_claim":      arr.get("baggage"),
+            "delay_minutes":      arr.get("delay") or dep.get("delay"),
+            "aircraft":           (f.get("aircraft") or {}).get("iata"),
+        }
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger("waypoint").warning(f"AviationStack error for {flight_iata}: {_e}")
+        return {**base, "enrich_status": "error", "flight_iata": flight_iata,
+                "enrich_error": str(_e)}
+
 
 async def _enrich_segment(seg: Segment) -> dict:
     if seg.type == "train":
@@ -460,6 +593,40 @@ async def _enrich_segment(seg: Segment) -> dict:
 
 # ── routes ─────────────────────────────────────────────────────────────────────
 
+
+@router.get("/api/usage")
+def get_api_usage(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    """Return API usage stats for the current month."""
+    from sqlalchemy import text as _text
+    from datetime import datetime as _dt, timezone as _tz
+    month = _dt.now(_tz.utc).strftime("%Y-%m")
+    rows = db.execute(_text("""
+        SELECT service,
+               COUNT(*) as calls,
+               SUM(CASE WHEN status='ok' THEN 1 ELSE 0 END) as ok,
+               SUM(CASE WHEN status!='ok' THEN 1 ELSE 0 END) as errors
+        FROM api_usage
+        WHERE called_at LIKE :month
+        GROUP BY service
+    """), {"month": f"{month}%"}).mappings().fetchall()
+
+    limits = {"aerodatabox": 2400, "aviationstack": 500}
+    result = {}
+    for r in rows:
+        svc = r["service"]
+        calls = r["calls"]
+        limit = limits.get(svc)
+        result[svc] = {
+            "calls_this_month": calls,
+            "ok": r["ok"],
+            "errors": r["errors"],
+            "limit": limit,
+            "pct": round(calls / limit * 100, 1) if limit else None,
+            "warning": (calls / limit) >= 0.75 if limit else False,
+            "critical": (calls / limit) >= 0.90 if limit else False,
+        }
+    return {"month": month, "services": result}
+
 @router.post("/api/segments/{segment_id}/enrich", response_model=SegmentOut)
 async def enrich_segment(segment_id: str, db: Session = Depends(get_db)):
     seg = db.query(Segment).filter(Segment.id == segment_id).first()
@@ -468,9 +635,28 @@ async def enrich_segment(segment_id: str, db: Session = Depends(get_db)):
 
     enrichment = await _enrich_segment(seg)
 
-    # Merge into meta (never wipe existing keys, only update)
+    # Write back segment-column fields if segment lacks them
+    if enrichment.get("_arrives_at") and not seg.arrives_at:
+        try:
+            from datetime import datetime as _dt2, timedelta as _td2
+            arr_time = enrichment["_arrives_at"][11:16]
+            dep_date = (seg.departs_at or "")[:10]
+            if dep_date and arr_time:
+                dep_time = (seg.departs_at or "")[11:16]
+                next_day = arr_time < dep_time
+                arr_date = dep_date
+                if next_day:
+                    d = _dt2.fromisoformat(dep_date) + _td2(days=1)
+                    arr_date = d.strftime("%Y-%m-%d")
+                seg.arrives_at = f"{arr_date}T{arr_time}:00"
+        except Exception:
+            pass
+    if enrichment.get("_arrives_tz") and not seg.arrives_tz:
+        seg.arrives_tz = enrichment["_arrives_tz"]
+    # Merge into meta (strip private keys, never wipe existing keys)
+    meta_enrichment = {k: v for k, v in enrichment.items() if not k.startswith("_")}
     meta = dict(seg.meta or {})
-    meta.update(enrichment)
+    meta.update(meta_enrichment)
     seg.meta = meta
     seg.updated_at = datetime.utcnow()
     db.commit()

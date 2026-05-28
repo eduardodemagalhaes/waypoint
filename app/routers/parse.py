@@ -93,7 +93,7 @@ Use 2026 if no year. Infer IANA timezone from city/airport."""
 
 # ── AviationStack ────────────────────────────────────────────────────────────
 
-def aviationstack_lookup(flight_iata: str, flight_date: str):
+async def aviationstack_lookup(flight_iata: str, flight_date: str):
     """
     Returns (flight_data_or_None, limitation_note_or_None).
     limitation_note is a user-friendly explanation when the free tier can't help.
@@ -103,11 +103,11 @@ def aviationstack_lookup(flight_iata: str, flight_date: str):
         return None, "AviationStack key not configured on this server."
 
     try:
-        resp = httpx.get(
-            AVIATIONSTACK_BASE,
-            params={"access_key": key, "flight_iata": flight_iata.upper(), "flight_date": flight_date},
-            timeout=8,
-        )
+        async with httpx.AsyncClient(timeout=8) as client:
+            resp = await client.get(
+                AVIATIONSTACK_BASE,
+                params={"access_key": key, "flight_iata": flight_iata.upper(), "flight_date": flight_date},
+            )
     except httpx.TimeoutException:
         return None, "Flight lookup timed out — AviationStack didn't respond in time."
     except httpx.HTTPError as e:
@@ -132,7 +132,7 @@ def aviationstack_lookup(flight_iata: str, flight_date: str):
     return data[0], None
 
 
-def enrich_with_aviationstack(data: dict):
+async def enrich_with_aviationstack(data: dict):
     """
     Try to verify and enrich a flight draft via AviationStack.
     Returns (enriched_data, parse_status, aviationstack_note).
@@ -145,7 +145,7 @@ def enrich_with_aviationstack(data: dict):
         return data, "ok", None
 
     flight_date = date_match.group(1)
-    f, limitation = aviationstack_lookup(flight_iata, flight_date)
+    f, limitation = await aviationstack_lookup(flight_iata, flight_date)
 
     if limitation:
         return data, "needs_review", limitation
@@ -211,7 +211,7 @@ class DialogConfirmRequest(BaseModel):
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/text", response_model=SegmentOut, status_code=201)
-def parse_text(body: ParseRequest, bg: BackgroundTasks, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def parse_text(body: ParseRequest, bg: BackgroundTasks, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """One-shot NL parse — kept for backward compatibility."""
     _verify_trip_ownership(body.trip_id, user, db)
 
@@ -226,7 +226,7 @@ def parse_text(body: ParseRequest, bg: BackgroundTasks, db: Session = Depends(ge
     data = json.loads(r.choices[0].message.content)
     parse_status, av_note = "ok", None
     if data.get("type") == "flight":
-        data, parse_status, av_note = enrich_with_aviationstack(data)
+        data, parse_status, av_note = await enrich_with_aviationstack(data)
 
     cols = Segment.__table__.columns.keys()
     seg = Segment(trip_id=body.trip_id, parse_status=parse_status,
@@ -315,9 +315,9 @@ async def parse_dialog(body: DialogRequest, db: Session = Depends(get_db), user:
         )
 
     if status=='ready' and draft.get('type')=='flight' and draft.get('flight_iata'):
-        draft,_,av_note=enrich_with_aviationstack(draft)
+        draft,_,av_note=await enrich_with_aviationstack(draft)
     if status=='ready' and return_draft and return_draft.get('flight_iata'):
-        return_draft,_,return_av_note=enrich_with_aviationstack(return_draft)
+        return_draft,_,return_av_note=await enrich_with_aviationstack(return_draft)
     timetable_note=None
     if status=='ready' and draft.get('type')=='train':
         draft,timetable_note=await verify_train_time(draft)
@@ -325,7 +325,7 @@ async def parse_dialog(body: DialogRequest, db: Session = Depends(get_db), user:
 
 
 @router.post("/dialog/confirm", response_model=SegmentOut, status_code=201)
-def dialog_confirm(body: DialogConfirmRequest, bg: BackgroundTasks, db: Session = Depends(get_db)):
+async def dialog_confirm(body: DialogConfirmRequest, bg: BackgroundTasks, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """
     User approved the summary card — write the segment to DB.
     """

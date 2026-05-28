@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Waypoint</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
+:root,[data-theme="light"]{
   --ink:#1a1814;--ink2:#4a4540;--ink3:#8a847c;--ink4:#c4bdb4;
   --paper:#f5f0e8;--paper2:#ede7da;--paper3:#e0d8cc;
   --accent:#c4611a;--accent2:#e8834a;
@@ -17,6 +17,20 @@
   --sans:'DM Sans',sans-serif;
   --mono:'DM Mono',monospace;
   --r:8px;
+}
+[data-theme="dark"]{
+  --ink:#f0ebe0;--ink2:#c8c0b4;--ink3:#8a847c;--ink4:#4a4540;
+  --paper:#1c1a16;--paper2:#23211d;--paper3:#2e2b25;
+  --accent:#e8834a;--accent2:#c4611a;
+  --green:#4caf78;--blue:#5b8fc7;--red:#e06060;
+}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="light"]):not([data-theme="dark"]){
+    --ink:#f0ebe0;--ink2:#c8c0b4;--ink3:#8a847c;--ink4:#4a4540;
+    --paper:#1c1a16;--paper2:#23211d;--paper3:#2e2b25;
+    --accent:#e8834a;--accent2:#c4611a;
+    --green:#4caf78;--blue:#5b8fc7;--red:#e06060;
+  }
 }
 body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height:100vh;font-size:14px;line-height:1.6}
 
@@ -41,10 +55,17 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .btn-sm{padding:5px 10px;font-size:12px}
 
 /* ── LAYOUT ── */
-.app{display:flex;min-height:calc(100vh - 49px)}
-.sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--paper3);
-  background:var(--paper2);padding:12px 0;overflow-y:auto;
-  position:sticky;top:49px;height:calc(100vh - 49px)}
+.app{display:flex;min-height:calc(100vh - 54px);margin-left:220px}
+.sidebar-footer{border-top:1px solid var(--paper3);padding:4px 0;flex-shrink:0}
+.sidebar-profile{display:flex;align-items:center;gap:8px;padding:9px 14px;cursor:pointer;font-size:13px;color:var(--ink3);transition:background .15s}
+.sidebar-profile:hover{background:var(--paper3);color:var(--ink)}
+.sidebar-profile-icon{font-size:15px}
+.sidebar{width:220px;flex-shrink:0;border-right:1px solid var(--paper3);display:flex;flex-direction:column;
+  background:var(--paper2);padding:0;overflow:hidden;
+  position:fixed;top:54px;left:0;height:calc(100vh - 54px);height:calc(100dvh - 54px);z-index:80}
+.sidebar-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:12px 0 0}
+.sidebar-scroll::-webkit-scrollbar{width:3px}
+.sidebar-scroll::-webkit-scrollbar-thumb{background:var(--paper3);border-radius:2px}
 .sidebar-section{padding:6px 14px 2px;font-size:10px;font-weight:600;
   text-transform:uppercase;letter-spacing:.08em;color:var(--ink4);margin-top:8px}
 .sidebar-section:first-child{margin-top:0}
@@ -57,6 +78,23 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .sidebar-item.active .sidebar-item-name{color:var(--accent)}
 .sidebar-item-date{font-size:11px;color:var(--ink3);margin-top:1px}
 .sidebar-item-seg{font-size:10px;color:var(--ink4);margin-top:1px}
+
+.folder-trip-list{display:flex;flex-direction:column;gap:0}
+.folder-trip-row{display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px;cursor:pointer;border-radius:6px;transition:background .1s;
+  border-bottom:1px solid var(--paper3)}
+.folder-trip-row:last-child{border-bottom:none}
+.folder-trip-row:hover{background:var(--paper3)}
+
+.sidebar-folder{display:flex;align-items:center;gap:6px;padding:8px 14px;cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--ink);border-left:3px solid transparent;
+  transition:background .1s}
+.sidebar-folder:hover{background:var(--paper3)}
+.sidebar-folder.active{background:var(--paper);border-left-color:var(--accent);color:var(--accent)}
+.sidebar-folder-arrow{font-size:10px;color:var(--ink4);transition:transform .15s}
+.sidebar-folder-count{margin-left:auto;font-size:10px;color:var(--ink4);background:var(--paper3);
+  border-radius:8px;padding:1px 5px}
+
 .sidebar-new{display:flex;align-items:center;gap:6px;padding:8px 14px;
   cursor:pointer;color:var(--accent);font-size:13px;font-weight:500;
   margin-top:4px;border-left:3px solid transparent}
@@ -65,20 +103,22 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 @media(max-width:700px){
   /* ── Sidebar ── */
   .sidebar{display:none}
-  .sidebar.mob-open{display:block;position:fixed;left:0;top:49px;z-index:90;
-    width:80vw;max-width:280px;height:calc(100vh - 49px);
-    box-shadow:4px 0 24px rgba(0,0,0,.18);overflow-y:auto}
-  .mob-overlay{display:none;position:fixed;inset:0;top:49px;background:rgba(0,0,0,.3);z-index:89}
+  .sidebar.mob-open{display:flex;flex-direction:column;position:fixed;left:0;top:54px;z-index:90;
+    width:80vw;max-width:280px;height:calc(100vh - 54px);
+    box-shadow:4px 0 24px rgba(0,0,0,.18)}
+  .mob-overlay{display:none;position:fixed;inset:0;top:54px;background:rgba(0,0,0,.3);z-index:89}
   .mob-overlay.open{display:block}
 
   /* ── Header ── */
   .hdr{padding:0 10px}
   .hdr-right{gap:6px}
   #editTripBtn{display:none}          /* moved to seg area on mobile */
+  #hdrUser{display:none}
   #mobMenuBtn{display:inline-flex !important}
 
   /* ── Main content ── */
   .main{padding:1rem 0.85rem 5rem; /* 5rem bottom = space for FAB */}
+  .app{margin-left:0}
   .trip-bar{margin-bottom:1rem;flex-wrap:wrap;gap:4px}
   .trip-name{font-size:21px}
   .trip-meta{font-size:11px}
@@ -165,6 +205,8 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 /* ── TRIP BAR ── */
 .trip-bar{display:flex;align-items:baseline;gap:10px;margin-bottom:1.5rem;position:relative}
 .trip-name{font-family:var(--serif);font-size:28px;letter-spacing:-.02em;cursor:pointer;transition:color .15s}
+.trip-name::after{content:' ✎';font-size:14px;color:var(--ink4);opacity:0;transition:opacity .2s;font-family:var(--sans)}
+.trip-name:hover::after{opacity:1}
 .trip-name:hover{color:var(--accent)}
 .trip-caret{font-size:11px;color:var(--ink3);cursor:pointer}
 .trip-meta{font-size:12px;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em;font-weight:300}
@@ -315,6 +357,110 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .cal-hint{font-size:11px;color:var(--ink3);line-height:1.6;margin-top:8px}
 
 /* ── PDF Upload ── */
+@media(max-width:600px){#pdfUploadBtn,#pdfDropZone{display:none!important}}
+
+
+.usage-bar-wrap{padding:10px 14px 8px;border-top:1px solid var(--paper3)}
+.usage-bar-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink4);margin-bottom:6px}
+.usage-bar-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.usage-bar-label{font-size:11px;color:var(--ink3);width:80px;flex-shrink:0}
+.usage-bar-bg{flex:1;height:4px;background:var(--paper3);border-radius:2px;overflow:hidden}
+.usage-bar-fill{height:100%;border-radius:2px;transition:width .3s}
+.usage-bar-count{font-size:10px;color:var(--ink4);white-space:nowrap}
+.inbox-nav{display:flex;align-items:center;gap:6px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:500;color:var(--ink3);border-top:1px solid var(--paper3);margin-top:4px;transition:background .15s}
+.inbox-nav:hover{background:var(--paper3);color:var(--ink)}
+.inbox-nav.has-orphans{color:var(--ink)}
+.inbox-badge{background:#c0392b;color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 6px;min-width:18px;text-align:center;line-height:16px}
+.orphan-tray{padding:20px 16px}
+.orphan-tray-title{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.orphan-tray-sub{font-size:13px;color:var(--ink3);margin-bottom:24px}
+.orphan-group{background:var(--paper);border:1px solid var(--paper3);border-radius:10px;margin-bottom:16px;overflow:hidden}
+.orphan-group-hdr{padding:10px 14px;background:var(--paper2);border-bottom:1px solid var(--paper3);font-size:12px;color:var(--ink3)}
+.orphan-seg{padding:10px 14px;border-bottom:1px solid var(--paper3);display:flex;align-items:center;gap:10px}
+.orphan-seg:last-child{border-bottom:none}
+.orphan-seg-icon{font-size:18px;flex-shrink:0}
+.orphan-seg-body{flex:1;min-width:0}
+.orphan-seg-main{font-size:14px;font-weight:500;color:var(--ink)}
+.orphan-seg-sub{font-size:12px;color:var(--ink3);margin-top:2px}
+.orphan-actions{padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.orphan-select{font-size:13px;padding:6px 10px;border:1px solid var(--paper3);border-radius:6px;background:var(--paper);color:var(--ink);flex:1;min-width:160px}
+.orphan-btn{font-size:13px;padding:6px 14px;border-radius:6px;border:none;cursor:pointer;font-weight:500;white-space:nowrap}
+.orphan-btn.primary{background:var(--accent);color:#fff}
+.orphan-btn.secondary{background:var(--paper2);color:var(--ink);border:1px solid var(--paper3)}
+.orphan-btn:disabled{opacity:.5;cursor:not-allowed}
+
+
+
+
+/* ── HOME SCREEN ── */
+.home-page{padding:28px 0;max-width:680px}
+.home-title{font-family:var(--serif);font-size:26px;letter-spacing:-.02em;color:var(--ink);margin-bottom:4px}
+.home-sub{font-size:13px;color:var(--ink3);margin-bottom:28px}
+.home-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--ink4);margin-bottom:10px;margin-top:24px}
+.home-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px}
+.home-action{display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+  padding:14px 14px 12px;background:var(--paper2);border:1px solid var(--paper3);
+  border-radius:10px;cursor:pointer;transition:all .15s;text-align:left}
+.home-action:hover{background:var(--paper3);border-color:var(--ink4)}
+.home-action-icon{font-size:20px;line-height:1}
+.home-action-label{font-size:13px;font-weight:500;color:var(--ink)}
+.home-action-sub{font-size:11px;color:var(--ink3);line-height:1.4}
+.home-email-tip{display:flex;align-items:center;gap:10px;padding:11px 14px;
+  background:var(--paper2);border:1px solid var(--paper3);border-radius:8px;
+  font-size:12px;color:var(--ink3);margin-top:10px}
+.home-email-addr{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--accent);
+  background:var(--paper3);padding:2px 8px;border-radius:4px;cursor:pointer;
+  user-select:all;transition:background .15s}
+.home-email-addr:hover{background:var(--paper)}
+.home-trips{display:flex;flex-direction:column;gap:0;margin-top:2px}
+.home-trip-row{display:flex;align-items:center;justify-content:space-between;
+  padding:11px 14px;cursor:pointer;border-radius:6px;border-bottom:1px solid var(--paper3);
+  transition:background .1s}
+.home-trip-row:last-child{border-bottom:none}
+.home-trip-row:hover{background:var(--paper3)}
+.home-trip-name{font-size:13px;font-weight:500;color:var(--ink)}
+.home-trip-date{font-size:11px;color:var(--ink3);margin-top:1px}
+.home-trip-segs{font-size:11px;color:var(--ink4)}
+.home-folder-row{display:flex;align-items:center;gap:8px;padding:11px 14px;
+  cursor:pointer;border-radius:6px;border-bottom:1px solid var(--paper3);
+  font-size:13px;font-weight:500;color:var(--ink3);transition:background .1s}
+.home-folder-row:last-child{border-bottom:none}
+.home-folder-row:hover{background:var(--paper3);color:var(--ink)}
+.home-folder-count{margin-left:auto;font-size:11px;color:var(--ink4);
+  background:var(--paper3);border-radius:8px;padding:1px 7px}
+@media(max-width:700px){
+  .home-actions{grid-template-columns:1fr 1fr}
+  .home-page{padding:16px 0}
+}
+
+/* ── SETTINGS ── */
+.theme-picker{display:flex;gap:8px;margin-top:6px}
+.theme-opt{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;
+  padding:10px 14px;border-radius:8px;border:2px solid var(--paper3);
+  font-size:12px;color:var(--ink3);transition:all .15s;min-width:72px}
+.theme-opt:hover{border-color:var(--ink3)}
+.theme-opt.sel{border-color:var(--accent);color:var(--accent);background:var(--paper2)}
+.theme-opt-icon{font-size:20px}
+
+.profile-page{padding:28px 20px;max-width:480px}
+.profile-title{font-family:var(--serif);font-size:24px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.profile-sub{font-size:13px;color:var(--ink3);margin-bottom:28px}
+.profile-section{margin-bottom:28px}
+.profile-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);margin-bottom:12px}
+.profile-field{margin-bottom:14px}
+.profile-field label{display:block;font-size:12px;font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.profile-field input{width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--paper3);border-radius:6px;background:var(--paper);font-family:var(--sans);font-size:14px;color:var(--ink);outline:none;transition:border-color .15s}
+.profile-field input:focus{border-color:var(--accent)}
+.profile-field .hint{font-size:11px;color:var(--ink4);margin-top:4px}
+.profile-airports{display:flex;gap:8px}
+.profile-airports input{width:80px!important;text-transform:uppercase;text-align:center;letter-spacing:.1em;font-weight:600}
+.profile-save{padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;transition:background .15s}
+.profile-save:hover{filter:brightness(1.08)}
+.profile-save:disabled{opacity:.5;cursor:not-allowed}
+.profile-saved{font-size:12px;color:var(--green);margin-left:10px;opacity:0;transition:opacity .3s}
+.profile-saved.show{opacity:1}
+
 .pdf-drop-zone{border:2px dashed var(--paper3);border-radius:10px;padding:28px 20px;
   text-align:center;cursor:pointer;transition:all .2s;margin-bottom:1.5rem;
   background:var(--paper)}
@@ -330,30 +476,30 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .overlay{display:none;position:fixed;inset:0;background:rgba(26,24,20,.55);
   z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
 .overlay.open{display:flex}
-.modal{background:var(--paper);border-radius:12px;padding:24px;width:100%;max-width:460px;
-  border:1px solid var(--paper3);max-height:90vh;overflow-y:auto;
+.modal{background:var(--paper);border-radius:12px;padding:18px 16px;width:100%;max-width:460px;
+  border:1px solid var(--paper3);max-height:88vh;overflow-y:auto;
   animation:slideUp .2s ease both}
 @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.modal-title{font-family:var(--serif);font-size:21px;letter-spacing:-.02em;margin-bottom:18px}
-.form-row{margin-bottom:13px}
+.modal-title{font-family:var(--serif);font-size:18px;letter-spacing:-.02em;margin-bottom:12px}
+.form-row{margin-bottom:9px}
 .form-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);
   font-weight:500;display:block;margin-bottom:5px}
-.form-input{width:100%;padding:8px 11px;border:1px solid var(--paper3);border-radius:6px;
-  font-family:var(--sans);font-size:14px;background:var(--paper);color:var(--ink);
+.form-input{width:100%;padding:6px 9px;border:1px solid var(--paper3);border-radius:6px;
+  font-family:var(--sans);font-size:13px;background:var(--paper);color:var(--ink);
   outline:none;transition:border-color .15s}
 .form-input:focus{border-color:var(--ink4);background:#fff}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .type-picker{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
-.type-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;
+.type-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 3px;
   border:1px solid var(--paper3);border-radius:8px;cursor:pointer;background:var(--paper);
   transition:all .15s;font-family:var(--sans)}
 .type-btn:hover{border-color:var(--ink4);background:var(--paper2)}
 .type-btn.sel{border-color:var(--ink);background:var(--ink);color:var(--paper)}
-.type-btn-icon{font-size:17px;line-height:1}
+.type-btn-icon{font-size:15px;line-height:1}
 .type-btn-lbl{font-size:9px;font-weight:500;letter-spacing:.04em;color:var(--ink3);text-transform:uppercase}
 .type-btn.sel .type-btn-lbl{color:var(--ink4)}
-.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;
-  padding-top:14px;border-top:1px solid var(--paper3)}
+.modal-footer{display:flex;gap:6px;justify-content:flex-end;margin-top:12px;
+  padding-top:10px;border-top:1px solid var(--paper3)}
 .trip-modal{max-width:380px}
 
 .edit-assist-msg{font-size:12px;line-height:1.5;padding:6px 10px;border-radius:8px;max-width:95%}
@@ -490,9 +636,26 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .auth-switch a:hover{text-decoration:underline}
 .auth-divider{border:none;border-top:1px solid var(--paper3);margin:1.25rem 0}
 /* user pill in header */
+
+/* ── AVATAR ── */
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0;
+  overflow:hidden;transition:opacity .15s;user-select:none}
+.avatar:hover{opacity:.85}
+.avatar img{width:100%;height:100%;object-fit:cover}
+
 .user-pill{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2)}
 .user-pill-name{font-weight:500;color:var(--ink)}
 </style>
+<script>
+// Apply theme before first paint to avoid flash
+(function(){
+  var t = localStorage.getItem('wp_theme');
+  if (t === 'dark') document.documentElement.setAttribute('data-theme','dark');
+  else if (t === 'light') document.documentElement.setAttribute('data-theme','light');
+})();
+</script>
 </head>
 <body>
 
@@ -500,12 +663,12 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   <div style="display:flex;align-items:center;gap:10px">
     <button class="btn btn-ghost btn-sm" id="mobMenuBtn" onclick="toggleSidebar()"
       style="display:none;font-size:18px;padding:2px 8px">☰</button>
-    <div class="logo"><div class="logo-dot"></div>Waypoint</div>
+    <div class="logo" onclick="openHomeView()" style="cursor:pointer" title="Home"><div class="logo-dot"></div>Waypoint</div>
   </div>
   <div class="hdr-right" id="hdrUser">
-    <button class="btn btn-ghost btn-sm" onclick="openEditTrip()" id="editTripBtn">Edit trip</button>
-    <button class="btn btn-ghost btn-sm" onclick="triggerPdfUpload()" id="pdfUploadBtn" title="Upload PDF booking confirmation">📄 Upload PDF</button>
-    <button class="btn btn-primary btn-sm" onclick="openAddSeg()">+ Add segment</button>
+    <div id="hdrAvatar" class="avatar" style="display:none" onclick="openProfile()" title="Profile"></div>
+    <button class="btn btn-ghost btn-sm" onclick="openEditTrip()" id="editTripBtn" style="display:none">Edit trip</button>
+    <button class="btn btn-primary btn-sm" id="addSegBtn" onclick="openAddSeg()" style="display:none">+ Add segment</button>
   </div>
 </header>
 <input type="file" id="pdfFileInput" accept=".pdf,application/pdf" onchange="handlePdfFile(this.files[0])">
@@ -514,29 +677,43 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 
 <div class="app">
 <nav class="sidebar" id="sidebar">
-  <div id="sidebarContent"><!-- rendered by JS --></div>
-  <div class="sidebar-new" onclick="openNewTrip()">＋ New trip</div>
-  <div class="sidebar-new" onclick="openPlanner()" style="color:var(--ink3);font-size:12px">✦ Plan with AI</div>
+  <div class="sidebar-scroll">
+    <div id="sidebarContent"><!-- rendered by JS --></div>
+    <div class="sidebar-new" onclick="openNewTrip()">＋ New trip</div>
+    <div class="sidebar-new" onclick="openPlanner()" style="color:var(--ink3);font-size:12px">✦ Plan with AI</div>
+    <div class="inbox-nav" id="inboxNav" onclick="openInbox()">
+      <span>📬 Inbox</span>
+      <span class="inbox-badge" id="inboxBadge" style="display:none">0</span>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div id="sidebarUserBlock" style="display:none">
+      <div class="sidebar-profile" onclick="openProfile()" style="gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--ink3)"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span style="font-size:13px;color:var(--ink2)">Profile</span>
+      </div>
+      <div class="sidebar-profile" onclick="openSettings()">
+        <span class="sidebar-profile-icon" style="font-size:13px">⚙</span>
+        <span>Settings</span>
+      </div>
+      <div class="sidebar-profile" onclick="doLogout()">
+        <span class="sidebar-profile-icon" style="font-size:13px">↪</span>
+        <span>Sign out</span>
+      </div>
+    </div>
+
+  </div>
 </nav>
 
 <main class="main">
 
-  <!-- PDF DROP ZONE -->
-  <div id="pdfDropZone" class="pdf-drop-zone" style="display:none"
-       onclick="triggerPdfUpload()"
-       ondragover="event.preventDefault();this.classList.add('drag-over')"
-       ondragleave="this.classList.remove('drag-over')"
-       ondrop="event.preventDefault();this.classList.remove('drag-over');handlePdfFile(event.dataTransfer.files[0])">
-    <div class="pdf-drop-icon">📄</div>
-    <div class="pdf-drop-title">Upload PDF booking confirmation</div>
-    <div class="pdf-drop-sub">Drop a PDF here or click to browse — boarding passes, hotel vouchers, rail tickets</div>
-    <div class="pdf-progress" id="pdfProgress"></div>
-  </div>
+  <!-- PDF file input only — no visible drop zone in trip view -->
+  <div id="pdfProgress" style="display:none;font-size:12px;color:var(--ink3);padding:4px 0;margin-bottom:8px"></div>
 
   <!-- TRIP BAR -->
   <div class="trip-bar" id="tripBar">
     <div style="position:relative">
-      <span class="trip-name" id="tripName">—</span>
+      <span class="trip-name" id="tripName" onclick="openEditTrip()" title="Edit trip">—</span>
     </div>
     <span class="trip-meta" id="tripMeta"></span>
     <button class="btn btn-ghost btn-sm" id="calBtn" onclick="openCalendarModal()" title="Subscribe to calendar" style="display:none;font-size:13px">📅</button>
@@ -706,7 +883,22 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   <div class="modal-footer">
     <button class="btn btn-ghost" onclick="closeSegModal()">Cancel</button>
     <button class="btn btn-ghost" onclick="toggleEditAssist()" id="editAssistBtn" style="display:inline-flex">✦ Ask assistant</button>
+    <button class="btn btn-ghost" id="editEnrichBtn" onclick="enrichFromEdit()" style="display:none">⟳ Enrich</button>
     <button class="btn btn-primary" id="segSaveBtn" onclick="saveSeg()">Save segment</button>
+  </div>
+</div>
+</div>
+
+
+<!-- ══════════ SEGMENT DETAILS MODAL ══════════ -->
+<div class="overlay" id="segDetailsOverlay">
+<div class="modal" style="max-width:480px">
+  <div class="modal-title" id="segDetailsTitle">Flight details</div>
+  <div id="segDetailsBody" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px 16px;padding:4px 0 16px"></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeSegDetails()">Close</button>
+    <button class="btn btn-ghost" id="segDetailsEnrichBtn" onclick="enrichFromDetails()">⟳ Enrich</button>
+    <button class="btn btn-primary" onclick="editFromDetails()">Edit</button>
   </div>
 </div>
 </div>
@@ -894,12 +1086,10 @@ async function boot() {
   renderUserPill();
   if (window.innerWidth <= 700) document.getElementById('mobMenuBtn').style.display = 'inline-flex';
   if (window.innerWidth <= 700) document.getElementById('mobFab').style.display = 'flex';
-  // PDF upload btn always visible
-  const pdfBtn = document.getElementById('pdfUploadBtn');
-  if (pdfBtn) pdfBtn.style.display = 'inline-flex';
   await loadTrips();
-  if (Array.isArray(trips) && trips.length) selectTrip(trips[0]);
-  else renderEmpty();
+  await loadOrphans();
+  await loadUsageWidget();
+  openHomeView();
 }
 
 // ── AUTH UI ───────────────────────────────────────────────────
@@ -933,10 +1123,19 @@ async function showResetScreen(token) {
 function renderUserPill() {
   const el = document.getElementById('hdrUser');
   if (!el || !currentUser) return;
-  el.innerHTML = `<span class="user-pill">
-    <span class="user-pill-name">${currentUser.username}</span>
-    <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sign out</button>
-  </span>`;
+  el.style.display = 'flex';
+  const av = document.getElementById('hdrAvatar');
+  if (av) {
+    av.style.display = 'flex';
+    const initials = (currentUser.username||'?').slice(0,1).toUpperCase() +
+      ((currentUser.username||'').split(' ')[1]||'').slice(0,1).toUpperCase();
+    av.innerHTML = currentUser.avatar_url
+      ? `<img src="${currentUser.avatar_url}" alt="">`
+      : initials;
+  }
+  // sidebar profile label is static ("Profile" + person icon)
+  const ub = document.getElementById('sidebarUserBlock');
+  if (ub) ub.style.display = 'block';
 }
 
 async function doLogin() {
@@ -968,7 +1167,6 @@ async function doRegister() {
   const btn = document.getElementById('registerBtn');
   const err = document.getElementById('registerError');
   const suc = document.getElementById('registerSuccess');
-  const username = document.getElementById('regUsername').value.trim();
   const email    = document.getElementById('regEmail').value.trim();
   const password = document.getElementById('regPassword').value;
   err.textContent = ''; suc.textContent = '';
@@ -976,12 +1174,11 @@ async function doRegister() {
   try {
     const r = await fetch(`${API}/api/auth/register`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({username, email, password})
+      body: JSON.stringify({email, password})
     });
     const d = await r.json();
     if (!r.ok) { err.textContent = d.detail || 'Registration failed'; return; }
     suc.textContent = '✓ Check your email to confirm your account.';
-    document.getElementById('regUsername').value = '';
     document.getElementById('regEmail').value = '';
     document.getElementById('regPassword').value = '';
   } catch(e) { err.textContent = 'Connection error'; }
@@ -1033,6 +1230,8 @@ async function doReset() {
 }
 
 async function doLogout() {
+  const ub = document.getElementById('sidebarUserBlock');
+  if (ub) ub.style.display = 'none';
   await fetch(`${API}/api/auth/logout`, {method:'POST', credentials:'include'});
   currentUser = null;
   trips = []; currentTrip = null;
@@ -1052,7 +1251,637 @@ async function loadTrips() {
   renderSidebar();
 }
 
+
+
+
+// ── API USAGE WIDGET ──────────────────────────────────────────────────────────
+async function loadUsageWidget() { /* moved to admin panel */ }
+
+// ── PROFILE PAGE ──────────────────────────────────────────────────────────────
+function openProfile() {
+  currentTrip = null;
+  closeSidebar();
+  closeInbox();
+  closeSettings();
+  closeFolderView();
+  closeHomeView();
+  const asb = document.getElementById('addSegBtn'); if (asb) asb.style.display = 'none';
+  const etb2 = document.getElementById('editTripBtn'); if (etb2) etb2.style.display = 'none';
+  ['tripBar','nlBar','statusBar','timeline'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  let pg = document.getElementById('profilePage');
+  if (!pg) {
+    pg = document.createElement('div');
+    pg.id = 'profilePage';
+    document.querySelector('.main').appendChild(pg);
+  }
+  pg.style.display = 'block';
+  renderProfilePage(pg);
+}
+
+function closeProfile() {
+  const pg = document.getElementById('profilePage');
+  if (pg) pg.style.display = 'none';
+}
+
+function renderProfilePage(container) {
+  const airports = (currentUser.home_airports || '').split(',').map(s=>s.trim()).filter(Boolean);
+  const [a1='', a2='', a3=''] = airports;
+  container.innerHTML = `<div class="profile-page">
+    <div class="profile-title">Profile</div>
+    <div class="profile-sub">Your personal settings and home base.</div>
+
+    <div class="profile-section">
+      <div class="profile-section-title">Account</div>
+      <div class="profile-field">
+        <label>Email</label>
+        <input type="email" value="${currentUser.email || ''}" disabled style="opacity:.6;cursor:not-allowed">
+      </div>
+      <div class="profile-field">
+        <label>Username</label>
+        <input type="text" value="${currentUser.username || ''}" disabled style="opacity:.6;cursor:not-allowed">
+      </div>
+    </div>
+
+    <div class="profile-section">
+      <div class="profile-section-title">Home Base</div>
+      <div class="profile-field">
+        <label>Home city</label>
+        <input type="text" id="profHomeCity" value="${currentUser.home_city || ''}" placeholder="e.g. Zurich">
+        <div class="hint">Used to exclude your home location from ambiguous trip matching.</div>
+      </div>
+      <div class="profile-field">
+        <label>Home airports <span style="font-weight:400;text-transform:none;letter-spacing:0">(up to 3 IATA codes)</span></label>
+        <div class="profile-airports">
+          <input type="text" id="profAirport1" value="${a1}" placeholder="ZRH" maxlength="4">
+          <input type="text" id="profAirport2" value="${a2}" placeholder="GVA" maxlength="4">
+          <input type="text" id="profAirport3" value="${a3}" placeholder="BSL" maxlength="4">
+        </div>
+        <div class="hint">Segments departing or arriving here won't trigger trip-match questions.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:0">
+      <button class="profile-save" id="profileSaveBtn" onclick="saveProfile()">Save</button>
+      <span class="profile-saved" id="profileSavedMsg">✓ Saved</span>
+    </div>
+  </div>`;
+}
+
+async function saveProfile() {
+  const btn = document.getElementById('profileSaveBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const city = document.getElementById('profHomeCity').value.trim();
+  const airports = [
+    document.getElementById('profAirport1').value.trim().toUpperCase(),
+    document.getElementById('profAirport2').value.trim().toUpperCase(),
+    document.getElementById('profAirport3').value.trim().toUpperCase(),
+  ].filter(Boolean).join(',');
+  try {
+    const r = await fetch(`${API}/api/auth/profile`, {
+      method:'PATCH', credentials:'include',
+      headers:{...H,'Content-Type':'application/json'},
+      body: JSON.stringify({home_city: city, home_airports: airports})
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const updated = await r.json();
+    currentUser = {...currentUser, ...updated};
+    renderUserPill();
+    const msg = document.getElementById('profileSavedMsg');
+    if (msg) { msg.classList.add('show'); setTimeout(()=>msg.classList.remove('show'), 2500); }
+  } catch(e) {
+    console.error('[ERR15] saveProfile:', e);
+    showToast('Could not save profile');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+
+// ── SEGMENT DETAILS MODAL ─────────────────────────────────────────────────────
+let _detailsSegId = null;
+
+function openSegDetails(id) {
+  _detailsSegId = id;
+  const seg = (currentTrip?.segments || []).find(s => s.id === id);
+  if (!seg) return;
+  const m = seg.meta || {};
+  const type = seg.type;
+
+  document.getElementById('segDetailsTitle').textContent =
+    type.charAt(0).toUpperCase() + type.slice(1) + ' details';
+
+  // Build all known fields
+  const rows = [];
+  const add = (lbl, val) => { if (val || val === 0) rows.push([lbl, val]); };
+
+  if (type === 'flight') {
+    add('From', seg.origin);
+    add('To', seg.destination);
+    add('Flight', seg.carrier);
+    add('Status', m.flight_status || null);
+    add('Aircraft', m.aircraft || null);
+    add('Airline', m.airline || null);
+    add('Distance', m.distance_km ? `${m.distance_km} km` : null);
+    add('Departs', seg.departs_at ? seg.departs_at.slice(0,16).replace('T',' ') : null);
+    add('Arrives', seg.arrives_at ? seg.arrives_at.slice(0,16).replace('T',' ') : null);
+    const _detDur = flightDuration(seg.departs_at, seg.arrives_at, seg.departs_tz, seg.arrives_tz);
+    if (_detDur) add('Duration', _detDur);
+    if (seg.departs_tz && seg.arrives_tz && seg.departs_tz !== seg.arrives_tz) {
+      add('Dep timezone', seg.departs_tz); add('Arr timezone', seg.arrives_tz);
+    } else if (seg.departs_tz) { add('Timezone', seg.departs_tz); }
+    add('Ref', seg.confirmation_ref);
+    add('Dep terminal', m.terminal_departure ? (m.terminal_hint ? `${m.terminal_departure} ·  typical` : m.terminal_departure) : null);
+    add('Dep gate', m.gate != null ? m.gate : (m.enrich_status === 'ok' ? 'TBA' : null));
+    add('Arr terminal', m.terminal_arrival || null);
+    add('Arr gate', m.gate_arrival || null);
+    add('Boarding', m.boarding_time);
+    add('Seat', m.seat);
+    add('Cabin', m.cabin_class);
+    add('Baggage', m.baggage_allowance);
+    add('Baggage claim', m.baggage_claim);
+    add('Price', m.price);
+    add('Ticket #', m.ticket_number);
+    add('Card', m.payment_card);
+    if (m.delay_minutes > 0) add('Expected delay', `+${m.delay_minutes} min`);
+    if (m.last_updated) {
+      try {
+        const lu = new Date(m.last_updated.replace(' ','T').replace(/Z$/,'+00:00'));
+        if (!isNaN(lu)) add('Data as of', lu.toLocaleDateString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}));
+      } catch(e) {}
+    }
+  } else if (type === 'train') {
+    add('From', seg.origin);
+    add('To', seg.destination);
+    add('Service', seg.carrier);
+    add('Train #', m.train_number);
+    add('Departs', seg.departs_at ? seg.departs_at.slice(0,16).replace('T',' ') : null);
+    add('Arrives', seg.arrives_at ? seg.arrives_at.slice(0,16).replace('T',' ') : null);
+    add('Class', m.class);
+    add('Coach', m.coach);
+    add('Seat', m.seat);
+    add('Platform dep', m.platform_departure ? `Platform ${m.platform_departure}` : null);
+    add('Platform arr', m.platform_arrival ? `Platform ${m.platform_arrival}` : null);
+    add('Ref', seg.confirmation_ref);
+    add('Price', m.price);
+  } else if (type === 'hotel') {
+    add('Hotel', seg.carrier);
+    add('City', seg.destination || seg.origin);
+    add('Check-in', seg.departs_at ? seg.departs_at.slice(0,10) : null);
+    add('Check-out', seg.arrives_at ? seg.arrives_at.slice(0,10) : null);
+    add('Nights', m.nights);
+    add('Room', m.room_type);
+    add('Check-in time', m.checkin_time);
+    add('Check-out time', m.checkout_time);
+    add('Address', m.address);
+    add('Phone', m.phone);
+    add('Ref', seg.confirmation_ref);
+    add('Price', m.price);
+    add('Cancellation', m.cancellation_policy);
+  } else {
+    add('From', seg.origin);
+    add('To', seg.destination);
+    add('Operator', seg.carrier);
+    add('Departs', seg.departs_at ? seg.departs_at.slice(0,16).replace('T',' ') : null);
+    add('Ref', seg.confirmation_ref);
+    add('Price', m.price);
+  }
+
+  const body = document.getElementById('segDetailsBody');
+  body.innerHTML = rows.map(([lbl, val]) =>
+    `<div><div class="det-lbl">${lbl}</div><div class="det-val">${val}</div></div>`
+  ).join('');
+
+  // Show enrich button for enrichable types
+  const enrichBtn = document.getElementById('segDetailsEnrichBtn');
+  if (enrichBtn) enrichBtn.style.display = ['flight','train','hotel'].includes(type) ? '' : 'none';
+
+  document.getElementById('segDetailsOverlay').classList.add('open');
+}
+
+function closeSegDetails() {
+  document.getElementById('segDetailsOverlay').classList.remove('open');
+  _detailsSegId = null;
+}
+
+function editFromDetails() {
+  const id = _detailsSegId;
+  closeSegDetails();
+  if (id) openEditSeg(id);
+}
+
+async function enrichFromDetails() {
+  if (!_detailsSegId) return;
+  const btn = document.getElementById('segDetailsEnrichBtn');
+  btn.disabled = true; btn.textContent = '⟳ Enriching…';
+  await enrichSeg(_detailsSegId, btn);
+  // Refresh details view with updated data
+  if (_detailsSegId) {
+    await selectTrip(currentTrip);
+    openSegDetails(_detailsSegId);
+  }
+  btn.disabled = false; btn.textContent = '⟳ Enrich';
+}
+
+async function enrichFromEdit() {
+  const id = window._editingSegId;
+  if (!id) return;
+  const btn = document.getElementById('editEnrichBtn');
+  await enrichSeg(id, btn);
+  // Re-populate form fields with freshly enriched data
+  const seg = (currentTrip?.segments || []).find(s => s.id === id);
+  if (seg) {
+    // Re-open the edit form with updated segment data
+    openEditSeg(id);
+  }
+}
+
+// ── ORPHAN INBOX ──────────────────────────────────────────────────────────────
+let orphans = [];
+
+async function loadOrphans() {
+  try {
+    const r = await fetch(`${API}/api/emails/orphans`, {credentials:'include', headers:H});
+    if (!r.ok) { orphans = []; return; }
+    orphans = await r.json();
+  } catch(e) { orphans = []; }
+  renderInboxBadge();
+}
+
+function renderInboxBadge() {
+  const badge = document.getElementById('inboxBadge');
+  const nav   = document.getElementById('inboxNav');
+  if (!badge || !nav) return;
+  if (orphans.length > 0) {
+    badge.textContent = orphans.length;
+    badge.style.display = 'inline-block';
+    nav.classList.add('has-orphans');
+  } else {
+    badge.style.display = 'none';
+    nav.classList.remove('has-orphans');
+  }
+}
+
+function openInbox() {
+  currentTrip = null;
+  closeSidebar();
+  closeProfile();
+  ['tripBar','nlBar','statusBar','timeline'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  let inbox = document.getElementById('inboxView');
+  if (!inbox) {
+    inbox = document.createElement('div');
+    inbox.id = 'inboxView';
+    document.querySelector('.main').appendChild(inbox);
+  }
+  inbox.style.display = 'block';
+  renderInboxView(inbox);
+}
+
+function closeInbox() {
+  const inbox = document.getElementById('inboxView');
+  if (inbox) inbox.style.display = 'none';
+}
+function _showMainContent() {
+  closeFolderView();
+  closeSettings();
+  closeHomeView();
+  ['tripBar','nlBar','statusBar','timeline'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = '';
+  });
+}
+
+const SEG_ICONS_ORPHAN = {flight:'✈️',train:'🚆',hotel:'🏨',car:'🚗',taxi:'🚕',activity:'🎭',other:'📌'};
+
+function renderInboxView(container) {
+  if (orphans.length === 0) {
+    container.innerHTML = `<div class="orphan-tray">
+      <div class="orphan-tray-title">Inbox</div>
+      <div class="orphan-tray-sub">No unassigned segments — you're all caught up.</div>
+    </div>`;
+    return;
+  }
+
+  // Group orphans by raw_email_id
+  const groups = {};
+  for (const seg of orphans) {
+    const key = seg.raw_email_id || '__none__';
+    if (!groups[key]) groups[key] = {subject: seg.email_subject, segs: []};
+    groups[key].segs.push(seg);
+  }
+
+  let html = `<div class="orphan-tray">
+    <div class="orphan-tray-title">📬 Inbox</div>
+    <div class="orphan-tray-sub">${orphans.length} unassigned segment${orphans.length===1?'':'s'} — tap a group to assign.</div>`;
+
+  for (const [key, group] of Object.entries(groups)) {
+    const groupId = key.replace(/[^a-z0-9]/gi,'_');
+    html += `<div class="orphan-group" id="ogrp_${groupId}">
+      <div class="orphan-group-hdr">From: ${group.subject || '(no subject)'}</div>`;
+    for (const seg of group.segs) {
+      const icon = SEG_ICONS_ORPHAN[seg.type] || '📌';
+      const route = seg.origin && seg.destination ? `${seg.origin} → ${seg.destination}` : (seg.destination || seg.origin || '');
+      const date  = seg.departs_at ? seg.departs_at.slice(0,10) : '';
+      const carrier = seg.carrier || '';
+      html += `<div class="orphan-seg">
+        <div class="orphan-seg-icon">${icon}</div>
+        <div class="orphan-seg-body">
+          <div class="orphan-seg-main">${seg.type.charAt(0).toUpperCase()+seg.type.slice(1)}${route ? ' · ' + route : ''}</div>
+          <div class="orphan-seg-sub">${[date, carrier, seg.confirmation_ref].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>`;
+    }
+    // Trip selector
+    const tripOpts = trips.map(t =>
+      `<option value="${t.id}">${t.name}${t.start_date ? ' ('+t.start_date.slice(0,7)+')' : ''}</option>`
+    ).join('');
+    const segIds = JSON.stringify(group.segs.map(s => s.id));
+    html += `<div class="orphan-actions">
+      <select class="orphan-select" id="osel_${groupId}">
+        <option value="">— Add to existing trip…</option>
+        ${tripOpts}
+        <option value="__new__">✦ Create new trip</option>
+      </select>
+      <button class="orphan-btn primary" onclick="assignOrphans('${groupId}', ${encodeURIComponent(JSON.stringify(group.segs.map(s=>s.id)))})">Assign</button>
+      <button class="orphan-btn secondary" onclick="discardOrphans(${encodeURIComponent(JSON.stringify(group.segs.map(s=>s.id)))}, '${groupId}')">Discard</button>
+    </div></div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+async function assignOrphans(groupId, encodedIds) {
+  const segIds = JSON.parse(decodeURIComponent(encodedIds));
+  const sel = document.getElementById(`osel_${groupId}`);
+  if (!sel || !sel.value) { showToast('Select a trip first'); return; }
+  const tripId = sel.value;
+  const btn = sel.parentElement.querySelector('.orphan-btn.primary');
+  btn.disabled = true; btn.textContent = 'Assigning…';
+
+  try {
+    if (tripId === '__new__') {
+      // Create trip from first segment's data then assign
+      const firstSeg = orphans.find(s => segIds.includes(s.id));
+      const dest = firstSeg?.destination || 'Trip';
+      const month = firstSeg?.departs_at ? new Date(firstSeg.departs_at).toLocaleDateString('en',{month:'short',year:'numeric'}) : '';
+      const newTripName = month ? `${dest} · ${month}` : dest;
+      const tr = await fetch(`${API}/api/trips/`, {
+        method:'POST', credentials:'include', headers:{...H,'Content-Type':'application/json'},
+        body: JSON.stringify({name:newTripName, start_date: firstSeg?.departs_at?.slice(0,10)||null, end_date: firstSeg?.departs_at?.slice(0,10)||null})
+      });
+      if (!tr.ok) { showToast('Could not create trip'); btn.disabled=false; btn.textContent='Assign'; return; }
+      const newTrip = await tr.json();
+      await _assignSegmentsToTrip(segIds, newTrip.id);
+      trips.push(newTrip);
+    } else {
+      await _assignSegmentsToTrip(segIds, tripId);
+    }
+    orphans = orphans.filter(s => !segIds.includes(s.id));
+    renderInboxBadge();
+    const inbox = document.getElementById('inboxView');
+    if (inbox) renderInboxView(inbox);
+    await loadTrips();
+    showToast('Segments assigned ✓');
+  } catch(e) {
+    console.error('[ERR13] assignOrphans:', e);
+    showToast('Assignment failed');
+    btn.disabled=false; btn.textContent='Assign';
+  }
+}
+
+async function _assignSegmentsToTrip(segIds, tripId) {
+  await Promise.all(segIds.map(sid =>
+    fetch(`${API}/api/segments/${sid}`, {
+      method:'PATCH', credentials:'include', headers:{...H,'Content-Type':'application/json'},
+      body: JSON.stringify({trip_id: tripId, parse_status: 'ok'})
+    })
+  ));
+}
+
+async function discardOrphans(encodedIds, groupId) {
+  const segIds = JSON.parse(decodeURIComponent(encodedIds));
+  if (!confirm(`Discard ${segIds.length} segment${segIds.length===1?'':'s'}? This cannot be undone.`)) return;
+  try {
+    await Promise.all(segIds.map(sid =>
+      fetch(`${API}/api/segments/${sid}`, {method:'DELETE', credentials:'include', headers:H})
+    ));
+    orphans = orphans.filter(s => !segIds.includes(s.id));
+    renderInboxBadge();
+    const inbox = document.getElementById('inboxView');
+    if (inbox) renderInboxView(inbox);
+    showToast('Discarded');
+  } catch(e) {
+    console.error('[ERR14] discardOrphans:', e);
+    showToast('Error discarding segments');
+  }
+}
+
+// ── THEME ────────────────────────────────────────────────────
+function getTheme() {
+  return localStorage.getItem('wp_theme') || 'system';
+}
+function applyTheme(t) {
+  const root = document.documentElement;
+  if (t === 'dark')  { root.setAttribute('data-theme','dark'); }
+  else if (t === 'light') { root.setAttribute('data-theme','light'); }
+  else { root.removeAttribute('data-theme'); }
+}
+function setTheme(t) {
+  localStorage.setItem('wp_theme', t);
+  applyTheme(t);
+  // update picker UI if open
+  document.querySelectorAll('.theme-opt').forEach(el => {
+    el.classList.toggle('sel', el.getAttribute('onclick') === `setTheme('${t}')`);
+  });
+}
+// apply on load
+applyTheme(getTheme());
+
+function openSettings() {
+  currentTrip = null;
+  closeSidebar();
+  closeInbox();
+  closeProfile();
+  closeFolderView();
+  closeHomeView();
+  const asb = document.getElementById('addSegBtn'); if (asb) asb.style.display = 'none';
+  const etb3 = document.getElementById('editTripBtn'); if (etb3) etb3.style.display = 'none';
+  ['tripBar','nlBar','statusBar','timeline'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  // pdfDropZone removed
+  let pg = document.getElementById('settingsPage');
+  if (!pg) {
+    pg = document.createElement('div');
+    pg.id = 'settingsPage';
+    document.querySelector('.main').appendChild(pg);
+  }
+  pg.style.display = 'block';
+  renderSettingsPage(pg);
+}
+
+function closeSettings() {
+  const pg = document.getElementById('settingsPage');
+  if (pg) pg.style.display = 'none';
+}
+
+function renderSettingsPage(container) {
+  container.innerHTML = `<div class="profile-page">
+    <div class="profile-title">Settings</div>
+    <div class="profile-sub">Appearance and system preferences.</div>
+
+    <div class="profile-section">
+      <div class="profile-section-title">Appearance</div>
+      <div class="profile-field">
+        <label>Theme</label>
+        <div class="theme-picker" id="themePicker">
+          <div class="theme-opt \${getTheme()==='light'?'sel':''}" onclick="setTheme('light')">
+            <span class="theme-opt-icon">☀️</span><span>Light</span>
+          </div>
+          <div class="theme-opt \${getTheme()==='dark'?'sel':''}" onclick="setTheme('dark')">
+            <span class="theme-opt-icon">🌙</span><span>Dark</span>
+          </div>
+          <div class="theme-opt \${getTheme()==='system'?'sel':''}" onclick="setTheme('system')">
+            <span class="theme-opt-icon">💻</span><span>System</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── HOME SCREEN ──────────────────────────────────────────────
+function openHomeView() {
+  currentTrip = null;
+  const etb = document.getElementById('editTripBtn'); if (etb) etb.style.display = 'none';
+  const asb = document.getElementById('addSegBtn'); if (asb) asb.style.display = 'none';
+  closeSidebar();
+  closeInbox();
+  closeProfile();
+  closeSettings();
+  closeFolderView();
+  ['tripBar','nlBar','statusBar','timeline'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  // pdfDropZone removed
+  const cb = document.getElementById('calBtn');
+  if (cb) cb.style.display = 'none';
+  let pg = document.getElementById('homeView');
+  if (!pg) {
+    pg = document.createElement('div');
+    pg.id = 'homeView';
+    document.querySelector('.main').appendChild(pg);
+  }
+  pg.style.display = 'block';
+  renderHome(pg);
+  renderSidebar();
+}
+
+function closeHomeView() {
+  const pg = document.getElementById('homeView');
+  if (pg) pg.style.display = 'none';
+}
+
+function renderHome(container) {
+  const pg = container || document.getElementById('homeView');
+  if (!pg) return;
+  const today = new Date().toISOString().slice(0,10);
+  const upcoming = trips.filter(t => !t.end_date || t.end_date >= today)
+    .sort((a,b) => (a.start_date||'').localeCompare(b.start_date||''));
+  const past = trips.filter(t => t.end_date && t.end_date < today)
+    .sort((a,b) => (b.start_date||'').localeCompare(a.start_date||''));
+  const visible = upcoming.slice(0, UPCOMING_LIMIT);
+  const overflow = upcoming.slice(UPCOMING_LIMIT);
+
+  const tripRow = (t) => {
+    const segs = t.segments ? t.segments.length : 0;
+    const dates = (t.start_date||t.end_date) ? `${fmtShort(t.start_date)||'?'} – ${fmtShort(t.end_date)||'?'}` : 'No dates';
+    return `<div class="home-trip-row" onclick="sidebarSelect('${t.id}')">
+      <div><div class="home-trip-name">${t.name}</div><div class="home-trip-date">${dates}</div></div>
+      ${segs ? `<span class="home-trip-segs">${segs} seg${segs===1?'':'s'}</span>` : ''}
+    </div>`;
+  };
+
+  let tripsHtml = '';
+  if (!trips.length) {
+    tripsHtml = `<div style="padding:16px 0;font-size:13px;color:var(--ink3)">No trips yet — create one below.</div>`;
+  } else {
+    if (visible.length) tripsHtml += visible.map(tripRow).join('');
+    if (overflow.length) {
+      tripsHtml += `<div class="home-folder-row" onclick="openFolder('future')">
+        <span>▸</span><span>More upcoming trips</span>
+        <span class="home-folder-count">${overflow.length}</span>
+      </div>`;
+    }
+    if (past.length) {
+      tripsHtml += `<div class="home-folder-row" onclick="openFolder('past')">
+        <span>▸</span><span>Past trips</span>
+        <span class="home-folder-count">${past.length}</span>
+      </div>`;
+    }
+  }
+
+  pg.innerHTML = `<div class="home-page">
+    <div class="home-title">Good ${greeting()}, ${(currentUser&&currentUser.username)||'traveller'}</div>
+    <div class="home-sub">${homeSubtitle(upcoming, past)}</div>
+
+    <div class="home-section-title">Quick actions</div>
+    <div class="home-actions">
+      <div class="home-action" onclick="openPlanner()">
+        <span class="home-action-icon">✦</span>
+        <span class="home-action-label">Plan with AI</span>
+        <span class="home-action-sub">Describe a trip and let the assistant build it</span>
+      </div>
+      <div class="home-action" onclick="triggerPdfUpload()">
+        <span class="home-action-icon">📄</span>
+        <span class="home-action-label">Upload PDF</span>
+        <span class="home-action-sub">Import a booking confirmation or boarding pass</span>
+      </div>
+      <div class="home-action" onclick="openNewTrip()">
+        <span class="home-action-icon">＋</span>
+        <span class="home-action-label">New trip</span>
+        <span class="home-action-sub">Create a trip manually and add segments</span>
+      </div>
+    </div>
+    <div class="home-email-tip">
+      <span>📬</span>
+      <span>Forward booking emails to</span>
+      <span class="home-email-addr" title="Click to copy" onclick="copyEmailAddr(this)">waypoint@emdm.ch</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--ink4)">and they'll appear in Inbox</span>
+    </div>
+
+    ${trips.length ? `<div class="home-section-title" style="margin-top:28px">Trips</div>
+    <div class="home-trips">${tripsHtml}</div>` : tripsHtml}
+  </div>`;
+}
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'morning'; if (h < 18) return 'afternoon'; return 'evening';
+}
+function homeSubtitle(upcoming, past) {
+  if (!upcoming.length && !past.length) return 'No trips yet. Start planning below.';
+  if (upcoming.length) {
+    const next = upcoming[0];
+    const diff = next.start_date ? Math.ceil((new Date(next.start_date)-new Date())/86400000) : null;
+    const when = diff === null ? '' : diff <= 0 ? ' — underway' : diff === 1 ? ' — tomorrow' : ` — in ${diff} days`;
+    return `Next trip: <strong>${next.name}</strong>${when}`;
+  }
+  return `${past.length} past trip${past.length===1?'':'s'}`;
+}
+function copyEmailAddr(el) {
+  navigator.clipboard.writeText('waypoint@emdm.ch').then(() => {
+    const orig = el.textContent;
+    el.textContent = 'Copied!';
+    setTimeout(() => el.textContent = orig, 1500);
+  });
+}
+
 // ── SIDEBAR ──────────────────────────────────────────────────
+const UPCOMING_LIMIT = 4;
+
 function renderSidebar() {
   const today = new Date().toISOString().slice(0,10);
   const upcoming = trips.filter(t => !t.end_date || t.end_date >= today);
@@ -1060,14 +1889,30 @@ function renderSidebar() {
   upcoming.sort((a,b) => (a.start_date||'').localeCompare(b.start_date||''));
   past.sort((a,b)     => (b.start_date||'').localeCompare(a.start_date||''));
 
+  const visible   = upcoming.slice(0, UPCOMING_LIMIT);
+  const overflow  = upcoming.slice(UPCOMING_LIMIT);
+
   let html = '';
-  if (upcoming.length) {
+  if (visible.length) {
     html += '<div class="sidebar-section">Upcoming</div>';
-    html += upcoming.map(t => sidebarItem(t)).join('');
+    html += visible.map(t => sidebarItem(t)).join('');
+  }
+  if (overflow.length) {
+    const folderActive = currentFolder === 'future' ? 'active' : '';
+    html += `<div class="sidebar-folder ${folderActive}" onclick="openFolder('future')">
+      <span class="sidebar-folder-arrow">▸</span>
+      <span>More trips</span>
+      <span class="sidebar-folder-count">${overflow.length}</span>
+    </div>`;
   }
   if (past.length) {
-    html += '<div class="sidebar-section">Past</div>';
-    html += past.map(t => sidebarItem(t)).join('');
+    const folderActive = currentFolder === 'past' ? 'active' : '';
+    html += '<div class="sidebar-section" style="margin-top:8px">Past</div>';
+    html += `<div class="sidebar-folder ${folderActive}" onclick="openFolder('past')">
+      <span class="sidebar-folder-arrow">▸</span>
+      <span>Past trips</span>
+      <span class="sidebar-folder-count">${past.length}</span>
+    </div>`;
   }
   if (!html) html = '<div style="padding:12px 14px;font-size:12px;color:var(--ink3)">No trips yet</div>';
   document.getElementById('sidebarContent').innerHTML = html;
@@ -1087,7 +1932,83 @@ function sidebarItem(t) {
 
 function sidebarSelect(tripId) {
   const trip = trips.find(t => t.id === tripId);
-  if (trip) { selectTrip(trip); closeSidebar(); }
+  if (trip) { closeInbox(); closeProfile(); closeFolderView(); selectTrip(trip); closeSidebar(); }
+}
+
+// ── FOLDER VIEW ──────────────────────────────────────────────
+let currentFolder = null; // 'past' | 'future' | null
+
+function openFolder(which) {
+  currentFolder = which;
+  currentTrip = null;
+  closeSidebar();
+  closeInbox();
+  closeProfile();
+  ['tripBar','nlBar','statusBar','timeline'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+  // pdfDropZone removed
+  const cb = document.getElementById('calBtn');
+  if (cb) cb.style.display = 'none';
+
+  let view = document.getElementById('folderView');
+  if (!view) {
+    view = document.createElement('div');
+    view.id = 'folderView';
+    document.querySelector('.main').appendChild(view);
+  }
+  view.style.display = 'block';
+  renderFolderView(view, which);
+  renderSidebar(); // refresh active state
+}
+
+function closeFolderView() {
+  currentFolder = null;
+  const view = document.getElementById('folderView');
+  if (view) view.style.display = 'none';
+}
+
+function renderFolderView(container, which) {
+  const today = new Date().toISOString().slice(0,10);
+  let list, title, emptyMsg;
+  if (which === 'past') {
+    list = trips.filter(t => t.end_date && t.end_date < today);
+    list.sort((a,b) => (b.start_date||'').localeCompare(a.start_date||'')); // newest first
+    title = 'Past trips';
+    emptyMsg = 'No past trips yet.';
+  } else {
+    const upcoming = trips.filter(t => !t.end_date || t.end_date >= today);
+    upcoming.sort((a,b) => (a.start_date||'').localeCompare(b.start_date||''));
+    list = upcoming.slice(UPCOMING_LIMIT);
+    title = 'More trips';
+    emptyMsg = 'No additional trips.';
+  }
+
+  if (!list.length) {
+    container.innerHTML = `<div style="padding:2rem 0;color:var(--ink3);font-size:14px">${emptyMsg}</div>`;
+    return;
+  }
+
+  const rows = list.map(t => {
+    const segCount = t.segments ? t.segments.length : 0;
+    const dates = (t.start_date || t.end_date)
+      ? `${fmtShort(t.start_date)||'?'} – ${fmtShort(t.end_date)||'?'}` : 'No dates';
+    const segsLabel = segCount ? `<span style="color:var(--ink4);font-size:12px">${segCount} segment${segCount===1?'':'s'}</span>` : '';
+    return `<div class="folder-trip-row" onclick="sidebarSelect('${t.id}')">
+      <div>
+        <div style="font-size:14px;font-weight:500;color:var(--ink)">${t.name}</div>
+        <div style="font-size:12px;color:var(--ink3);margin-top:2px">${dates}</div>
+      </div>
+      ${segsLabel}
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.2rem">
+      <h2 style="font-size:1.1rem;font-weight:600;color:var(--ink);margin:0">${title}</h2>
+      <span style="font-size:12px;color:var(--ink4)">${list.length} trip${list.length===1?'':'s'}</span>
+    </div>
+    <div class="folder-trip-list">${rows}</div>`;
 }
 
 function toggleDD() {} // legacy no-op
@@ -1122,10 +2043,8 @@ async function handlePdfFile(file) {
   if (!file.name.toLowerCase().endsWith('.pdf')) { toast('Please select a PDF file'); return; }
   if (!currentTrip) { toast('Select a trip first'); return; }
 
-  const zone   = document.getElementById('pdfDropZone');
-  const prog   = document.getElementById('pdfProgress');
-  zone.classList.add('uploading');
-  prog.textContent = `Parsing ${file.name}…`;
+  const prog = document.getElementById('pdfProgress');
+  if (prog) { prog.style.display = 'block'; prog.textContent = `Parsing ${file.name}…`; }
 
   try {
     const form = new FormData();
@@ -1151,8 +2070,7 @@ async function handlePdfFile(file) {
     toast('PDF upload failed [ERR13]: ' + e.message);
     console.error('[ERR13]', e);
   } finally {
-    zone.classList.remove('uploading');
-    prog.textContent = '';
+    if (prog) { prog.textContent = ''; prog.style.display = 'none'; }
     document.getElementById('pdfFileInput').value = '';
   }
 }
@@ -1200,9 +2118,12 @@ function closeSidebar() {
 
 async function selectTrip(trip) {
   if (!trip) return;
+  const etb = document.getElementById('editTripBtn'); if (etb) etb.style.display = 'inline-flex';
+  const asb = document.getElementById('addSegBtn'); if (asb) asb.style.display = 'inline-flex';
+  if (document.activeElement) document.activeElement.blur();
+  closeInbox(); closeProfile(); _showMainContent();
   if (window.innerWidth <= 700) closeSidebar();
-  const dz = document.getElementById('pdfDropZone');
-  if (dz) dz.style.display = 'block';
+  // pdfDropZone removed
   const cb = document.getElementById('calBtn');
   if (cb) cb.style.display = 'inline-flex';
   cancelDialog();
@@ -1344,7 +2265,7 @@ function renderTimeline() {
             ${detailFields(s)}
             <div style="grid-column:1/-1" class="seg-actions">
               <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditSeg('${s.id}')">Edit</button>
-              ${['train','hotel','flight'].includes(s.type) ? `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();enrichSeg('${s.id}',this)">⟳ Enrich</button>` : ''}
+              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openSegDetails('${s.id}')">Details</button>
               <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteSeg('${s.id}')">Delete</button>
             </div>
           </div>
@@ -1378,23 +2299,17 @@ function detailFields(s) {
         ✏️ ${m.enrich_reason || 'Add a flight number to enable enrichment'}
       </div>`;
     }
-    out += df('Cabin', m.cabin_class);
-    out += df('Fare', m.fare_type);
-    out += df('Terminal dep', m.terminal_departure || null);
-    out += df('Gate dep', m.gate || null);
-    out += df('Terminal arr', m.terminal_arrival || null);
-    out += df('Gate arr', m.gate_arrival || null);
-    out += df('Baggage claim', m.baggage_claim || null);
+    if (m.delay_minutes > 0) out += df('Expected', `+${m.delay_minutes}m delay`);
+    const _dur = flightDuration(s.departs_at, s.arrives_at, s.departs_tz, s.arrives_tz);
+    if (_dur) out += df('Duration', _dur);
+    // Gate/terminal only shown when operationally confirmed (not hints)
+    if (m.terminal_departure && !m.terminal_hint) out += df('Terminal', m.terminal_departure);
+    if (m.gate && !m.terminal_hint) out += df('Gate', m.gate);
     out += df('Boarding', m.boarding_time);
     out += df('Seat', m.seat);
+    out += df('Cabin', m.cabin_class);
     out += df('Baggage', m.baggage_allowance);
-    out += df('Ticket #', m.ticket_number);
-    if (m.delay_minutes > 0) out += df('Delay', `${m.delay_minutes} min`);
-    out += df('Dep timezone', s.departs_tz);
-    if (s.arrives_tz && s.arrives_tz !== s.departs_tz) out += df('Arr timezone', s.arrives_tz);
-    out += df('Price', m.price);
-    out += df('Card', m.payment_card);
-
+    out += df('Baggage claim', m.baggage_claim || null);
   }
 
   // ── TRAIN ─────────────────────────────────────────────
@@ -1405,10 +2320,9 @@ function detailFields(s) {
     out += df('Seat', m.seat);
     out += df('Platform dep', m.platform_departure ? `Platform ${m.platform_departure}` : null);
     out += df('Platform arr', m.platform_arrival ? `Platform ${m.platform_arrival}` : null);
-    out += df('Dep timezone', s.departs_tz);
-    if (s.arrives_tz && s.arrives_tz !== s.departs_tz) out += df('Arr timezone', s.arrives_tz);
     out += df('Price', m.price);
-
+    if (s.departs_tz && s.arrives_tz && s.departs_tz !== s.arrives_tz)
+      out += df('Timezones', `${s.departs_tz} → ${s.arrives_tz}`);
   }
 
   // ── HOTEL ─────────────────────────────────────────────
@@ -1456,36 +2370,7 @@ function toggleDetail(card) {
 }
 
 function renderEmpty() {
-  const dz = document.getElementById('pdfDropZone');
-  if (dz) dz.style.display = 'none';
-
-  document.getElementById('tripName').textContent = 'Waypoint';
-  document.getElementById('tripMeta').textContent = '';
-  document.getElementById('statusBar').style.display = 'none';
-  document.getElementById('timeline').innerHTML = `
-    <div style="margin-bottom:1.5rem">
-      <div style="font-size:13px;color:var(--ink3);margin-bottom:12px">
-        No trips yet — plan one with the assistant, or
-        <button class="btn btn-ghost btn-sm" onclick="openNewTrip()" style="font-size:13px">create manually</button>
-      </div>
-      <div class="planner" id="plannerPanel">
-        <div class="planner-header">
-          <div>
-            <div class="planner-title">✦ Plan a trip</div>
-            <div class="planner-sub">Tell me where you want to go</div>
-          </div>
-        </div>
-        <div class="planner-thread" id="plannerThread">
-          <div class="planner-msg bot">Hi! Where would you like to go? Tell me the destination, dates, and I'll help build the whole itinerary.</div>
-        </div>
-        <div class="planner-input-row">
-          <input class="form-input" id="plannerInput" placeholder="e.g. Tokyo for 10 days in October, flying from Zurich…"
-            onkeydown="if(event.key==='Enter')plannerSend()" style="font-size:13px">
-          <button class="btn btn-primary" onclick="plannerSend()">Send</button>
-        </div>
-      </div>
-    </div>`;
-  initPlanner();
+  openHomeView();
 }
 
 // ── DIALOG: NL BAR ───────────────────────────────────────────
@@ -1599,7 +2484,7 @@ function cancelDialog() {
   document.getElementById('nlBtn').textContent = 'Add';
   document.getElementById('nlInput').placeholder = 'e.g. flight ZRH to HRG Oct 10 07:15 Swiss LX392…';
   document.getElementById('nlInput').value = '';
-  document.getElementById('nlInput').focus();
+  if (window.innerWidth > 700) document.getElementById('nlInput').focus();
 }
 
 function appendGuardrailInline(message, options, meta) {
@@ -1866,11 +2751,15 @@ function openAddSeg() {
 }
 
 function openEditSeg(id) {
+  window._editingSegId = id;
   const seg = currentTrip.segments.find(s => s.id === id);
   if (!seg) return;
   editingSegId = id;
   document.getElementById('segModalTitle').textContent = 'Edit segment';
   document.getElementById('segSaveBtn').textContent    = 'Update segment';
+  const seg4enrich = (currentTrip?.segments||[]).find(s=>s.id===id);
+  const enrichBtn = document.getElementById('editEnrichBtn');
+  if (enrichBtn) enrichBtn.style.display = seg4enrich && ['flight','train','hotel'].includes(seg4enrich.type) ? 'inline-flex' : 'none';
   clearSegForm();
   const typeBtn = [...document.querySelectorAll('.type-btn')]
     .find(b => b.getAttribute('onclick').includes(`'${seg.type}'`));
@@ -2021,6 +2910,7 @@ async function saveTrip() {
 document.getElementById('segOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeSegModal(); });
 document.getElementById('tripOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeTripModal(); });
 document.getElementById('editTripOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeEditTripModal(); });
+document.getElementById('segDetailsOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeSegDetails(); });
 
 // ── TIME INPUT AUTO-COLON ─────────────────────────────────────
 // Smart time parser: accepts 800, 8:00, 08.00, 8, 830 etc → HH:MM
@@ -2206,8 +3096,8 @@ async function deleteTrip() {
   await fetch(`${API}/api/trips/${currentTrip.id}`, {method:'DELETE', credentials:'include', headers:H});
   closeEditTripModal();
   await loadTrips();
-  if (trips.length) selectTrip(trips[0]);
-  else renderEmpty();
+  if (trips.length) openHomeView();
+  else openHomeView();
   toast('Trip deleted');
 }
 
@@ -2236,7 +3126,7 @@ async function enrichSeg(id, btn) {
           detail.innerHTML = detailFields(segData) +
             `<div style="grid-column:1/-1" class="seg-actions">
               <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditSeg('${id}')">Edit</button>
-              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();enrichSeg('${id}',this)">⟳ Enrich</button>
+              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openSegDetails('${id}')">Details</button>
               <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteSeg('${id}')">Delete</button>
             </div>`;
           // Re-query after innerHTML replacement (reference is now stale)
@@ -2274,10 +3164,14 @@ async function enrichSeg(id, btn) {
         }
       }
     }
-    toast('Enriched ✓');
+    const seg = (currentTrip?.segments||[]).find(x=>x.id===id);
+    const m = seg?.meta || {};
+    const hasData = m.terminal_departure || m.gate || m.seat || m.boarding_time || m.aircraft || seg?.arrives_at;
+    toast(hasData ? 'Enriched ✓' : 'Enriched — no new data available yet');
   } catch(e) {
     toast('Enrich failed — check console');
     console.error(e);
+  } finally {
     btn.disabled = false;
     btn.textContent = orig;
   }
@@ -2969,9 +3863,6 @@ function checkDateGuardrail(segDate, onProceed) {
     <!-- REGISTER -->
     <div id="authRegister" style="display:none">
       <div class="auth-title">Create account</div>
-      <div class="auth-field"><label>Username</label>
-        <input type="text" id="regUsername" autocomplete="username" placeholder="yourname">
-      </div>
       <div class="auth-field"><label>Email</label>
         <input type="email" id="regEmail" autocomplete="email" placeholder="you@example.com">
       </div>

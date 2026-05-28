@@ -1,23 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException
+"""
+emails.py — Email ingest pipeline: raw email → GPT parsing → segments.
+Transactional email functions live in email_templates.py.
+"""
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
-from app.routers.auth import _email_template
-from app.routers.deps import get_current_user
 from app.models.models import RawEmail, Segment, Trip
 from app.schemas.schemas import SegmentOut
-import os, json, re, smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from app.routers.deps import get_current_user
+from app.routers.segments import schedule_enrich
+from app.routers.email_templates import send_unregistered_reply, send_ingest_reply, FROM_EMAIL, FRONTEND_URL
 from sqlalchemy import text
 from openai import OpenAI
+import os, json, re as _re
+import io as _io, uuid as _uuid
 
 router = APIRouter(prefix="/api/emails", tags=["emails"])
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-FROM_EMAIL   = os.getenv("FROM_EMAIL", "trip.helper@emdm.ch")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "https://waypoint.emdm.ch")
 
 import re as _re
 def _extract_email(addr: str) -> str:
@@ -34,48 +36,6 @@ def lookup_user_by_email(db, sender_email: str):
     ).mappings().fetchone()
     return dict(row) if row else None
 
-def send_unregistered_reply(to: str):
-    """Send a branded reply when sender is not a registered user."""
-    register_url = FRONTEND_URL
-    subject = "Waypoint — we don't recognise this email address"
-    body_text = (
-        f"Hi,\n\n"
-        f"We received your forwarded email but couldn't match {to} to a Waypoint account.\n\n"
-        f"To use Waypoint, register at:\n{register_url}\n\n"
-        f"Once registered, forward your travel confirmation emails to waypoint@emdm.ch "
-        f"and we'll build your itinerary automatically.\n\n"
-        f"— Waypoint"
-    )
-    body_html = (
-        "<p style=\"margin:0 0 12px;font-size:15px;color:#4a4540;line-height:1.7;\">"
-        "  We received your forwarded email but couldn&#39;t find a Waypoint account"
-        f" registered to <strong style=\"color:#1a1814\">{to}</strong>."
-        "</p>"
-        "<p style=\"margin:0;font-size:15px;color:#4a4540;line-height:1.7;\">"
-        "  Create a free account — make sure to register with this exact email address."
-        "  Once you&#39;re in, forward any travel confirmation to"
-        "  <strong style=\"color:#1a1814\">waypoint@emdm.ch</strong>"
-        "  and we&#39;ll build your itinerary automatically."
-        "</p>"
-    )
-    html = _email_template(
-        heading="Email not recognised",
-        body_html=body_html,
-        cta_url=register_url,
-        cta_label="Create your account",
-        footnote="You're receiving this because someone forwarded a travel confirmation from this address to waypoint@emdm.ch."
-    )
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"]    = f"Waypoint <{FROM_EMAIL}>"
-        msg["To"]      = to
-        msg.attach(MIMEText(body_text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP("localhost") as s:
-            s.sendmail(FROM_EMAIL, [to], msg.as_string())
-    except Exception as e:
-        import logging; logging.getLogger("waypoint").warning(f"Could not send unregistered reply: {e}")
 
 SYSTEM = """Extract ALL travel segments from this booking confirmation email.
 You MUST return a JSON object with a single key "segments" whose value is an array.
@@ -133,6 +93,279 @@ Rules:
 """
 
 
+
+
+import math as _math
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    R = 6371.0
+    dlat = _math.radians(lat2 - lat1)
+    dlon = _math.radians(lon2 - lon1)
+    a = _math.sin(dlat/2)**2 + _math.cos(_math.radians(lat1))*_math.cos(_math.radians(lat2))*_math.sin(dlon/2)**2
+    return R * 2 * _math.atan2(_math.sqrt(a), _math.sqrt(1-a))
+
+def _geocode_iata_or_city(name: str) -> tuple[float,float] | None:
+    """Best-effort lat/lon for an IATA code or city name via Nominatim."""
+    import urllib.request, json, time
+    if not name:
+        return None
+    q = name.strip()
+    url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(q)}&format=json&limit=1&accept-language=en"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Waypoint/1.0 trip.helper@emdm.ch"})
+        with urllib.request.urlopen(req, timeout=4) as r:
+            data = json.loads(r.read())
+        if data:
+            return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception:
+        pass
+    return None
+
+def _trip_geo_points(trip) -> list[tuple[float,float]]:
+    """Return list of (lat,lon) for a trip based on its location field."""
+    coords = []
+    if trip.location:
+        c = _geocode_iata_or_city(trip.location)
+        if c:
+            coords.append(c)
+    return coords
+
+def should_ask_user(db, segments: list, trips: list, user: dict = None) -> bool:
+    """
+    Return True if the user should be asked where to assign these segments
+    instead of auto-creating a new trip.
+
+    Fires when ANY existing trip is within 3 days AND within 30km of a
+    segment endpoint — excluding the user's home-base airports/city.
+    """
+    if not trips:
+        return False
+
+    import urllib.parse
+
+    # Build home-base exclusion set
+    home_airports = set()
+    home_city_coords = None
+    if user:
+        raw_airports = (user.get("home_airports") or "")
+        home_airports = {c.strip().upper() for c in raw_airports.split(",") if c.strip()}
+        home_city = (user.get("home_city") or "").strip()
+        if home_city:
+            home_city_coords = _geocode_iata_or_city(home_city)
+
+    def _is_home_base(name: str) -> bool:
+        if not name:
+            return False
+        if name.upper() in home_airports:
+            return True
+        if home_city_coords:
+            c = _geocode_iata_or_city(name)
+            if c and _haversine_km(c[0], c[1], home_city_coords[0], home_city_coords[1]) <= 30:
+                return True
+        return False
+
+    # Collect all segment dates
+    seg_dates = sorted([
+        s["departs_at"][:10] for s in segments if (s.get("departs_at") or "")[:10]
+    ])
+    if not seg_dates:
+        return False
+    first_date = seg_dates[0]
+    last_date  = seg_dates[-1]
+
+    # Collect non-home-base segment endpoints
+    seg_points = set()
+    for seg in segments:
+        t = seg.get("type", "")
+        if t in ("flight", "train"):
+            if seg.get("origin") and not _is_home_base(seg["origin"]):
+                seg_points.add(seg["origin"])
+            if seg.get("destination") and not _is_home_base(seg["destination"]):
+                seg_points.add(seg["destination"])
+        else:
+            if seg.get("destination") and not _is_home_base(seg["destination"]):
+                seg_points.add(seg["destination"])
+            if seg.get("origin") and not _is_home_base(seg["origin"]):
+                seg_points.add(seg["origin"])
+
+    # If all endpoints are home-base, nothing is ambiguous
+    if not seg_points:
+        return False
+
+    from datetime import date as _date
+    try:
+        first_dt = _date.fromisoformat(first_date)
+        last_dt  = _date.fromisoformat(last_date)
+    except Exception:
+        return False
+
+    for trip in trips:
+        if not trip.start_date:
+            continue
+        try:
+            trip_start = _date.fromisoformat(trip.start_date)
+            trip_end   = _date.fromisoformat(trip.end_date) if trip.end_date else trip_start
+        except Exception:
+            continue
+
+        # Date proximity: within 3 days of trip start or end
+        date_close = (
+            abs((first_dt - trip_start).days) <= 3 or
+            abs((first_dt - trip_end).days)   <= 3 or
+            abs((last_dt  - trip_start).days) <= 3 or
+            abs((last_dt  - trip_end).days)   <= 3
+        )
+        if not date_close:
+            continue
+
+        # Geo proximity: any segment endpoint within 30km of trip location
+        trip_coords = _trip_geo_points(trip)
+        if not trip_coords:
+            # No trip coords — date proximity alone is enough to ask
+            return True
+
+        for pt_name in seg_points:
+            pt_coords = _geocode_iata_or_city(pt_name)
+            if not pt_coords:
+                continue
+            for (tlat, tlon) in trip_coords:
+                dist = _haversine_km(pt_coords[0], pt_coords[1], tlat, tlon)
+                if dist <= 30:
+                    return True
+
+    return False
+
+
+def save_orphan_segments(db, raw_email, segments_data: list, user_id: str, trips_for_email: list) -> list:
+    """
+    Persist segments as orphans (trip_id=NULL, parse_status='pending_assignment').
+    Create signed resolve tokens for each candidate trip + one for 'new'.
+    Returns list of (token_str, trip_or_None) for email assembly.
+    """
+    import uuid as _uuid, json as _json
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+    from sqlalchemy import text as _text
+
+    cols = Segment.__table__.columns.keys()
+    seg_ids = []
+    for seg_data in segments_data:
+        seg = Segment(
+            trip_id      = None,
+            raw_email_id = raw_email.id,
+            parse_status = "pending_assignment",
+            **{k: v for k, v in seg_data.items() if k in cols}
+        )
+        seg.meta = seg_data.get("meta", {})
+        seg.meta["source"] = "email"
+        db.add(seg)
+        db.flush()
+        seg_ids.append(seg.id)
+
+    # One token per candidate trip + one for "create new"
+    expires = (_dt.now(_tz.utc) + _td(days=9999)).isoformat()  # never expires
+    tokens = []
+    candidates = list(trips_for_email) + [None]  # None = create new trip
+    for trip in candidates:
+        tok = _uuid.uuid4().hex + _uuid.uuid4().hex  # 64-char token
+        meta = _json.dumps({"segment_ids": seg_ids, "trip_id": trip.id if trip else "new"})
+        db.execute(_text(
+            "INSERT INTO email_tokens (id, user_id, token, type, expires_at, meta) "
+            "VALUES (:id, :uid, :tok, 'assign', :exp, :meta)"
+        ), {"id": str(_uuid.uuid4()), "uid": user_id, "tok": tok, "exp": expires, "meta": meta})
+        tokens.append((tok, trip))
+
+    db.commit()
+    return tokens
+
+def create_trip_from_segments(db, segments: list, user_id: str):
+    """
+    Auto-create a trip from parsed segments when none exists.
+    Names the trip after the primary destination + month.
+    Returns the new Trip object.
+    """
+    from app.models.models import Trip as TripModel
+    import uuid as _uuid_mod
+    from datetime import datetime as _dt, timezone as _tz
+
+    # Collect all departure dates to set the date range
+    dates = sorted([
+        s["departs_at"][:10]
+        for s in segments
+        if (s.get("departs_at") or "")[:10]
+    ])
+    start_date = dates[0]  if dates else None
+    end_date   = dates[-1] if dates else None
+
+    # Also consider arrives_at for end_date (e.g. hotel checkout)
+    arrive_dates = sorted([
+        s["arrives_at"][:10]
+        for s in segments
+        if (s.get("arrives_at") or "")[:10]
+    ])
+    if arrive_dates:
+        end_date = max(end_date or "", arrive_dates[-1]) or end_date
+
+    # Primary destination: first non-home destination across all segment endpoints.
+    # For return trips (ZRH→PMO, PMO→ZRH) this picks PMO, not ZRH.
+    def _is_home(name):
+        if not name:
+            return True
+        n = name.strip().upper()
+        # Check against home_airports if available (passed via user context at module level)
+        # We use the module-level _is_home_base helper if user context is available,
+        # but here we fall back to a simpler check: any IATA-looking token in the name
+        # that appears in both origin and destination of different segments = likely home.
+        return False  # resolved below
+
+    # Collect all endpoints (origin + destination) across segments
+    all_endpoints = []
+    for seg in segments:
+        for field in ("origin", "destination"):
+            v = seg.get(field)
+            if v:
+                all_endpoints.append(v.strip().upper())
+
+    # Count frequency — home base appears most often (start + end of trip)
+    from collections import Counter as _Counter
+    freq = _Counter(all_endpoints)
+    # Most frequent endpoint is likely home — exclude it and pick first remaining destination
+    most_common_count = freq.most_common(1)[0][1] if freq else 0
+    home_candidates = {k for k, c in freq.items() if c == most_common_count} if most_common_count > 1 else set()
+
+    # First destination not in home_candidates
+    destinations = [
+        s.get("destination", "").strip().upper()
+        for s in segments
+        if s.get("destination") and s["destination"].strip().upper() not in home_candidates
+    ]
+    primary_dest = destinations[0] if destinations else (
+        # fallback: just take the most-mentioned non-origin destination
+        freq.most_common()[-1][0] if freq else None
+    )
+
+    # Trip name: "Palermo · Jul 2026" or just "Trip · Jul 2026"
+    if start_date:
+        try:
+            month_str = _dt.fromisoformat(start_date).strftime("%b %Y")
+        except Exception:
+            month_str = start_date[:7]
+    else:
+        month_str = _dt.now(_tz.utc).strftime("%b %Y")
+
+    trip_name = f"{primary_dest} · {month_str}" if primary_dest else f"Trip · {month_str}"
+
+    from sqlalchemy import text as _text
+    trip_id = str(_uuid_mod.uuid4())
+    now = _dt.now(_tz.utc).isoformat()
+    db.execute(_text("""
+        INSERT INTO trips (id, name, start_date, end_date, location, user_id, home_currency, created_at)
+        VALUES (:id, :name, :start_date, :end_date, :location, :user_id, 'CHF', :created_at)
+    """), dict(id=trip_id, name=trip_name, start_date=start_date, end_date=end_date,
+               location=primary_dest, user_id=user_id, created_at=now))
+    db.flush()
+    # Return as ORM object so the rest of the ingest flow can use trip.id normally
+    return db.query(TripModel).filter(TripModel.id == trip_id).one()
+
 def find_best_trip(db, segments, user_id: str = None):
     """
     Find the best trip for a set of segments based on date overlap.
@@ -145,8 +378,6 @@ def find_best_trip(db, segments, user_id: str = None):
     trips = q.order_by(Trip.start_date).all()
     if not trips:
         return None
-    if len(trips) == 1:
-        return trips[0]
 
     seg_dates = sorted([(s.get("departs_at") or "")[:10]
                         for s in segments if (s.get("departs_at") or "")[:10]])
@@ -171,21 +402,8 @@ def find_best_trip(db, segments, user_id: str = None):
             if any(trip.start_date <= d <= trip.end_date for d in all_dates):
                 return trip
 
-    # 3. Same month as trip start
-    for trip in trips:
-        if trip.start_date and first_date[:7] == trip.start_date[:7]:
-            return trip
-
-    # 4. Closest trip by proximity to first segment date
-    def proximity(t):
-        if t.start_date:
-            return abs((
-                __import__('datetime').date.fromisoformat(first_date) -
-                __import__('datetime').date.fromisoformat(t.start_date)
-            ).days)
-        return 9999
-
-    return min(trips, key=proximity)
+    # 3. No reliable match — let caller auto-create a new trip
+    return None
 
 
 def call_gpt(subject, body_text):
@@ -232,155 +450,91 @@ class ReparseRequest(BaseModel):
 
 # ── Ingest confirmation reply ─────────────────────────────────────────────────
 
-SEGMENT_ICONS = {
-    "flight":   "✈",
-    "train":    "🚄",
-    "hotel":    "🏨",
-    "car":      "🚗",
-    "activity": "🎟",
-    "other":    "📌",
-}
-
-def _fmt_segment_row(seg_data: dict) -> str:
-    """One-line summary of a segment for the reply email."""
-    icon  = SEGMENT_ICONS.get(seg_data.get("type", "other"), "📌")
-    typ   = (seg_data.get("type") or "segment").capitalize()
-    orig  = seg_data.get("origin") or ""
-    dest  = seg_data.get("destination") or ""
-    route = f"{orig} → {dest}" if orig and dest else (orig or dest or "")
-    date  = ""
-    dep   = seg_data.get("departs_at") or seg_data.get("check_in") or ""
-    if dep and "T" in dep:
-        date = dep[:10]
-    elif dep:
-        date = dep[:10]
-    carrier = seg_data.get("carrier") or seg_data.get("hotel_name") or ""
-    ref     = seg_data.get("confirmation_ref") or ""
-
-    parts = [p for p in [route, carrier, ref] if p]
-    detail = " · ".join(parts)
-    line = f"{icon} {typ}"
-    if date:    line += f" &nbsp;·&nbsp; {date}"
-    if detail:  line += f" &nbsp;·&nbsp; {detail}"
-    return line
 
 
-def send_ingest_reply(to: str, status: str, subject: str,
-                      segments_data: list = None, trip_name: str = None,
-                      error: str = None):
-    """Reply to sender summarising what Waypoint did with their forwarded email."""
-    app_url = FRONTEND_URL
-    reply_subject = f"Re: {subject}" if subject else "Your Waypoint itinerary update"
 
-    if status == "ok" and segments_data:
-        count = len(segments_data)
-        heading = f"Added {count} segment{'s' if count > 1 else ''} to your itinerary"
-        trip_line = (
-            f'<p style="margin:0 0 20px;font-size:13px;color:#8a847c;">'
-            f'Trip: <strong style="color:#4a4540">{trip_name}</strong></p>'
-        ) if trip_name else ""
-        seg_rows = "".join(
-            '<li style="padding:6px 0;border-bottom:1px solid #e0d8cc;'
-            'font-size:14px;color:#4a4540;">'
-            + _fmt_segment_row(s) + "</li>"
-            for s in segments_data
-        )
-        body_html = (
-            '<p style="margin:0 0 16px;font-size:15px;color:#4a4540;line-height:1.7;">'
-            "We parsed your forwarded email and added the following to Waypoint:"
-            "</p>"
-            + trip_line
-            + '<ul style="margin:0 0 8px;padding:0;list-style:none;">'
-            + seg_rows + "</ul>"
-        )
-        plain = (
-            f"We parsed your forwarded email and added {count} segment(s) to Waypoint"
-            + (f" ({trip_name})" if trip_name else "") + ":\n\n"
-            + "\n".join(
-                "  - " + _fmt_segment_row(s).replace("&nbsp;", " ").replace("·", "|")
-                for s in segments_data
-            )
-            + f"\n\nView your trip: {app_url}\n\n— Waypoint"
-        )
-        footnote = "Questions or corrections? Reply to this email or edit directly in Waypoint."
 
-    elif status == "no_segments":
-        heading = "We couldn\u2019t find any travel details"
-        body_html = (
-            '<p style="margin:0 0 16px;font-size:15px;color:#4a4540;line-height:1.7;">'
-            "We received your forwarded email but couldn\u2019t extract any travel segments from it."
-            "</p>"
-            '<p style="margin:0;font-size:15px;color:#4a4540;line-height:1.7;">'
-            "This can happen with heavily formatted emails or scanned documents. "
-            "You can add segments manually in the app, or try forwarding a plain-text version."
-            "</p>"
-        )
-        plain = (
-            "We received your forwarded email but couldn't extract any travel segments.\n\n"
-            "You can add segments manually in the app, or try forwarding a plain-text version.\n\n"
-            f"Open Waypoint: {app_url}\n\n\u2014 Waypoint"
-        )
-        footnote = "If this keeps happening, reply to this email and we\u2019ll take a look."
+@router.get("/orphans")
+def get_orphans(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    """Return all pending_assignment segments for the current user."""
+    from sqlalchemy import text as _text
+    rows = db.execute(_text("""
+        SELECT s.id, s.type, s.origin, s.destination, s.departs_at, s.arrives_at,
+               s.carrier, s.confirmation_ref, s.meta, s.raw_email_id,
+               r.subject as email_subject, r.received_at as email_received
+        FROM segments s
+        LEFT JOIN raw_emails r ON s.raw_email_id = r.id
+        LEFT JOIN raw_emails r2 ON r2.id = s.raw_email_id
+        WHERE s.trip_id IS NULL
+          AND s.parse_status = 'pending_assignment'
+          AND r.from_address LIKE :email_pat
+        ORDER BY s.departs_at ASC
+    """), {"email_pat": f"%{user['email']}%"}).mappings().fetchall()
+    return [dict(r) for r in rows]
 
-    elif status == "no_trip":
-        heading = "Couldn\u2019t match your email to a trip"
-        body_html = (
-            '<p style="margin:0 0 16px;font-size:15px;color:#4a4540;line-height:1.7;">'
-            "We parsed your email but couldn\u2019t find a matching trip in your account."
-            "</p>"
-            '<p style="margin:0;font-size:15px;color:#4a4540;line-height:1.7;">'
-            "Open Waypoint to create a trip first, then forward the email again \u2014 "
-            "or add the segment manually."
-            "</p>"
-        )
-        plain = (
-            "We parsed your email but couldn't find a matching trip in your account.\n\n"
-            "Create a trip in Waypoint first, then forward the email again.\n\n"
-            f"Open Waypoint: {app_url}\n\n\u2014 Waypoint"
-        )
-        footnote = "Need help? Reply to this email."
 
+@router.post("/resolve/{token}")
+def resolve_assignment(token: str, db: Session = Depends(get_db)):
+    """
+    One-click resolve: assign orphan segments to a trip (or create one).
+    No auth required — the token IS the auth.
+    """
+    import json as _json, uuid as _uuid
+    from sqlalchemy import text as _text
+    from datetime import datetime as _dt, timezone as _tz
+
+    row = db.execute(_text(
+        "SELECT * FROM email_tokens WHERE token=:tok AND type='assign' AND used_at IS NULL"
+    ), {"tok": token}).mappings().fetchone()
+    if not row:
+        return {"ok": False, "error": "Invalid or already used link"}
+
+    meta = _json.loads(row["meta"] or "{}")
+    seg_ids  = meta.get("segment_ids", [])
+    trip_id  = meta.get("trip_id")
+
+    if trip_id == "new":
+        # Collect segment data to build a trip name
+        segs = db.execute(_text(
+            f"SELECT * FROM segments WHERE id IN ({','.join([repr(i) for i in seg_ids])})"
+        )).mappings().fetchall()
+        seg_list = [dict(s) for s in segs]
+        trip_obj = create_trip_from_segments(db, seg_list, user_id=row["user_id"])
+        trip_id  = trip_obj.id
     else:
-        heading = "Something went wrong"
-        body_html = (
-            '<p style="margin:0 0 16px;font-size:15px;color:#4a4540;line-height:1.7;">'
-            "We received your email but ran into a problem while processing it."
-            "</p>"
-            '<p style="margin:0;font-size:15px;color:#4a4540;line-height:1.7;">'
-            "Please try forwarding it again, or add your travel details manually in the app."
-            "</p>"
-        )
-        plain = (
-            "We received your email but ran into a problem processing it.\n\n"
-            "Please try forwarding it again, or add your travel details manually.\n\n"
-            f"Open Waypoint: {app_url}\n\n\u2014 Waypoint"
-        )
-        footnote = "If this keeps happening, reply to this email and we\u2019ll investigate."
+        trip_obj = db.query(Trip).filter(Trip.id == trip_id).first()
+        if not trip_obj:
+            return {"ok": False, "error": "Trip not found"}
 
-    html = _email_template(
-        heading=heading,
-        body_html=body_html,
-        cta_url=app_url,
-        cta_label="Open Waypoint",
-        footnote=footnote,
-    )
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = reply_subject
-        msg["From"]    = f"Waypoint <{FROM_EMAIL}>"
-        msg["To"]      = to
-        msg["Reply-To"] = "Waypoint <waypoint@emdm.ch>"
-        msg.attach(MIMEText(plain, "plain"))
-        msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP("localhost") as s:
-            s.sendmail(FROM_EMAIL, [to], msg.as_string())
-    except Exception as e:
-        import logging
-        logging.getLogger("waypoint").warning(f"Could not send ingest reply to {to}: {e}")
+    # Assign segments
+    now = _dt.now(_tz.utc).isoformat()
+    for sid in seg_ids:
+        db.execute(_text(
+            "UPDATE segments SET trip_id=:tid, parse_status='ok', updated_at=:now WHERE id=:sid AND trip_id IS NULL"
+        ), {"tid": trip_id, "now": now, "sid": sid})
+
+    db.execute(_text("UPDATE email_tokens SET used_at=:now WHERE token=:tok"),
+               {"now": now, "tok": token})
+    db.commit()
+
+    from fastapi.responses import HTMLResponse
+    html = f"""<!DOCTYPE html><html><head><meta charset=utf-8>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{{font-family:Georgia,serif;background:#f5f0e8;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}}
+.card{{background:#fff;border-radius:12px;padding:40px 32px;max-width:380px;text-align:center;box-shadow:0 2px 16px rgba(0,0,0,.08)}}
+h2{{margin:0 0 12px;font-size:22px;color:#2c2825}} p{{color:#6b635a;line-height:1.6;margin:0 0 24px}}
+a{{display:inline-block;background:#b5651d;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:15px}}</style>
+</head><body><div class="card">
+<div style="font-size:32px;margin-bottom:16px">✦</div>
+<h2>Added to {trip_obj.name}</h2>
+<p>Your segments have been assigned. Open Waypoint to see your itinerary.</p>
+<a href="{FRONTEND_URL}">Open Waypoint</a>
+</div></body></html>"""
+    return HTMLResponse(html)
 
 
 @router.post("/ingest", response_model=IngestResponse)
-def ingest_email(body: IngestRequest, db: Session = Depends(get_db)):
+def ingest_email(body: IngestRequest, bg: BackgroundTasks, db: Session = Depends(get_db)):
     existing = db.query(RawEmail).filter(RawEmail.message_id == body.message_id).first()
     if existing:
         return IngestResponse(ok=True, message_id=body.message_id, parse_status="duplicate", error="Already processed")
@@ -411,10 +565,28 @@ def ingest_email(body: IngestRequest, db: Session = Depends(get_db)):
     if not trip_id:
         trip = find_best_trip(db, segments_data, user_id=user["id"])
         trip_id = trip.id if trip else None
+    trip_created = False
     if not trip_id:
-        raw.parse_status = "failed"; db.commit()
-        send_ingest_reply(sender_clean, "no_trip", body.subject)
-        return IngestResponse(ok=False, message_id=body.message_id, parse_status="failed", error="No trip found for this user")
+        # Check if any existing trip is close in date + location → ask user instead
+        all_user_trips = db.query(Trip).filter(Trip.user_id == user["id"]).all()
+        if all_user_trips and should_ask_user(db, segments_data, all_user_trips, user=user):
+            # Save as orphans, send confirmation email
+            tokens = save_orphan_segments(db, raw, segments_data, user["id"], all_user_trips)
+            raw.parse_status = "pending_assignment"
+            db.commit()
+            from app.routers.email_templates import send_assignment_email
+            send_assignment_email(
+                to=sender_clean,
+                subject=body.subject,
+                segments_data=segments_data,
+                trips_and_tokens=tokens,
+            )
+            return IngestResponse(ok=True, message_id=body.message_id,
+                                  parse_status="pending_assignment", segments_created=0)
+        # No close trips — auto-create
+        new_trip = create_trip_from_segments(db, segments_data, user_id=user["id"])
+        trip_id = new_trip.id
+        trip_created = True
     raw.trip_id = trip_id
     cols = Segment.__table__.columns.keys()
     created = 0
@@ -422,7 +594,7 @@ def ingest_email(body: IngestRequest, db: Session = Depends(get_db)):
         seg = Segment(trip_id=trip_id, raw_email_id=raw.id, parse_status="ok",
                       **{k: v for k, v in seg_data.items() if k in cols})
         seg.meta = seg_data.get("meta", {}); seg.meta["source"] = "email"
-        db.add(seg); created += 1
+        db.add(seg); db.flush(); schedule_enrich(bg, seg.id); created += 1
     raw.parse_status = "ok"; db.commit()
     trip_obj = db.query(Trip).filter(Trip.id == trip_id).first()
     send_ingest_reply(
@@ -431,12 +603,13 @@ def ingest_email(body: IngestRequest, db: Session = Depends(get_db)):
         subject=body.subject,
         segments_data=segments_data,
         trip_name=trip_obj.name if trip_obj else None,
+        trip_created=trip_created,
     )
     return IngestResponse(ok=True, message_id=body.message_id, trip_id=trip_id, segments_created=created)
 
 
 @router.post("/reparse", response_model=IngestResponse)
-def reparse_email(body: ReparseRequest, db: Session = Depends(get_db)):
+def reparse_email(body: ReparseRequest, bg: BackgroundTasks, db: Session = Depends(get_db)):
     raw = db.query(RawEmail).filter(RawEmail.id == body.raw_email_id).first()
     if not raw:
         raise HTTPException(404, "Raw email not found")
@@ -463,7 +636,7 @@ def reparse_email(body: ReparseRequest, db: Session = Depends(get_db)):
         seg = Segment(trip_id=trip_id, raw_email_id=raw.id, parse_status="ok",
                       **{k: v for k, v in seg_data.items() if k in cols})
         seg.meta = seg_data.get("meta", {}); seg.meta["source"] = "email"
-        db.add(seg); created += 1
+        db.add(seg); db.flush(); schedule_enrich(bg, seg.id); created += 1
     raw.parse_status = "ok"; db.commit()
     return IngestResponse(ok=True, message_id=raw.message_id, trip_id=trip_id, segments_created=created)
 
@@ -586,7 +759,7 @@ async def upload_pdf(
         seg = Segment(trip_id=trip_id, raw_email_id=raw.id, parse_status="ok",
                       **{k: v for k, v in seg_data.items() if k in cols})
         seg.meta = seg_data.get("meta", {}); seg.meta["source"] = "pdf_upload"
-        db.add(seg); created += 1
+        db.add(seg); db.flush(); schedule_enrich(bg, seg.id); created += 1
 
     raw.parse_status = "ok"; db.commit()
 

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.models import Trip
-from app.schemas.schemas import TripCreate, TripUpdate, TripOut
+from app.schemas.schemas import TripCreate, TripUpdate, TripOut, TripListOut
 from app.routers.deps import get_current_user
 
 router = APIRouter(prefix="/api/trips", tags=["trips"])
@@ -18,7 +18,7 @@ def _owned_trip(trip_id: str, user: dict, db: Session) -> Trip:
     return trip
 
 
-@router.get("/", response_model=list[TripOut])
+@router.get("/", response_model=list[TripListOut])
 def list_trips(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     return (
         db.query(Trip)

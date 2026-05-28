@@ -9,11 +9,10 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, timezone, timedelta
-import uuid, bcrypt, smtplib, os
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import uuid, bcrypt, os
 
 from app.database import get_db
+from app.routers.email_templates import _email_template, send_verification_email, send_reset_email
 from sqlalchemy import text
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -25,16 +24,7 @@ TOKEN_EXPIRY_HOURS = 24
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
-def send_email(to: str, subject: str, html: str, text: str):
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"]    = f"Waypoint <{FROM_EMAIL}>"
-    msg["To"]      = to
-    msg.attach(MIMEText(text, "plain"))
-    msg.attach(MIMEText(html, "html"))
-    with smtplib.SMTP("localhost") as s:
-        s.sendmail(FROM_EMAIL, [to], msg.as_string())
-
+from app.routers.email_templates import send_email, _email_template, send_verification_email, send_reset_email
 
 def create_token(db: Session, user_id: str, token_type: str) -> str:
     token = uuid.uuid4().hex + uuid.uuid4().hex  # 64-char random token
@@ -48,100 +38,37 @@ def create_token(db: Session, user_id: str, token_type: str) -> str:
 
 
 
-def _email_template(heading: str, body_html: str, cta_url: str, cta_label: str, footnote: str) -> str:
-    """Branded HTML email — Waypoint visual identity."""
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{heading}</title></head>
-<body style="margin:0;padding:0;background:#ede7da;font-family:'DM Sans',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#ede7da;padding:40px 16px;">
-<tr><td align="center">
-<table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;">
-  <tr><td style="padding-bottom:24px;text-align:center;">
-    <span style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:#1a1814;letter-spacing:.5px;">
-      &#10022; Waypoint
-    </span>
-  </td></tr>
-  <tr><td style="background:#f5f0e8;border-radius:12px;padding:40px 36px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
-    <h1 style="margin:0 0 16px;font-family:Georgia,serif;font-size:26px;font-weight:700;color:#1a1814;line-height:1.2;">
-      {heading}
-    </h1>
-    {body_html}
-    <table cellpadding="0" cellspacing="0" style="margin:32px 0 0;">
-      <tr><td style="background:#c4611a;border-radius:8px;">
-        <a href="{cta_url}" style="display:inline-block;padding:14px 32px;color:#fff;
-           font-family:'DM Sans',Arial,sans-serif;font-size:15px;font-weight:600;
-           text-decoration:none;letter-spacing:.2px;">{cta_label}</a>
-      </td></tr>
-    </table>
-    <p style="margin:20px 0 0;font-size:12px;color:#8a847c;word-break:break-all;">
-      Or copy this link: <a href="{cta_url}" style="color:#c4611a;">{cta_url}</a>
-    </p>
-    <hr style="margin:32px 0;border:none;border-top:1px solid #e0d8cc;">
-    <p style="margin:0;font-size:12px;color:#8a847c;line-height:1.6;">{footnote}</p>
-  </td></tr>
-  <tr><td style="padding-top:24px;text-align:center;">
-    <p style="margin:0;font-size:11px;color:#c4bdb4;">Waypoint &middot; trip.helper@emdm.ch</p>
-  </td></tr>
-</table>
-</td></tr>
-</table>
-</body></html>"""
-
-
-def send_verification_email(to: str, username: str, token: str):
-    link = f"{FRONTEND_URL}/verify-email?token={token}"
-    subject = "Confirm your Waypoint account"
-    text = (
-        f"Hi {username},\n\n"
-        f"Please confirm your email address to activate your Waypoint account:\n{link}\n\n"
-        f"This link expires in 24 hours. If you didn't register, you can safely ignore this email.\n\n"
-        f"— Waypoint"
-    )
-    body = (
-        f"<p style=\"margin:0 0 16px;font-size:16px;color:#4a4540;line-height:1.6;\">"
-        f"  Hi <strong style=\"color:#1a1814\">{username}</strong>,"
-        f"</p>"
-        "<p style=\"margin:0;font-size:15px;color:#4a4540;line-height:1.7;\">"
-        "  Welcome to Waypoint. Click below to confirm your email address"
-        "  and activate your account."
-        "</p>"
-    )
-    html = _email_template(
-        heading="Confirm your email",
-        body_html=body,
-        cta_url=link,
-        cta_label="Confirm email address",
-        footnote="This link expires in 24 hours. If you didn't create a Waypoint account, you can safely ignore this email."
-    )
-    send_email(to, subject, html, text)
-
-
 # ── models ─────────────────────────────────────────────────────────────────────
 
 class RegisterRequest(BaseModel):
-    username: str
     email: EmailStr
     password: str
 
 
 # ── routes ─────────────────────────────────────────────────────────────────────
+class ForgotRequest(BaseModel):
+    email: EmailStr
+
+class ResetRequest(BaseModel):
+    token: str
+    password: str
+
 
 @router.post("/register")
 async def register(body: RegisterRequest, db: Session = Depends(get_db)):
     # Validate
-    if len(body.username) < 2:
-        raise HTTPException(400, "Username must be at least 2 characters")
     if len(body.password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")
 
+    # Derive username from email local part
+    username = body.email.split("@")[0].lower()
+
     # Check duplicates
-    existing = db.execute(text("SELECT id FROM users WHERE email=:email OR username=:username"),
-        {"email": body.email, "username": body.username}
+    existing = db.execute(text("SELECT id FROM users WHERE email=:email"),
+        {"email": body.email}
     ).mappings().fetchone()
     if existing:
-        raise HTTPException(409, "Email or username already registered")
+        raise HTTPException(409, "An account with that email already exists")
 
     # Create user
     now = datetime.now(timezone.utc).isoformat()
@@ -150,13 +77,13 @@ async def register(body: RegisterRequest, db: Session = Depends(get_db)):
 
     db.execute(text("""INSERT INTO users (id, username, email, password_hash, is_verified, is_admin, created_at, updated_at)
            VALUES (:id, :username, :email, :pw, 0, 0, :now, :now)"""),
-        {"id": user_id, "username": body.username, "email": body.email, "pw": pw_hash, "now": now}
+        {"id": user_id, "username": username, "email": body.email, "pw": pw_hash, "now": now}
     )
     db.commit()
 
     # Send verification email
     token = create_token(db, user_id, "verify")
-    send_verification_email(body.email, body.username, token)
+    send_verification_email(body.email, username, token)
 
     return {"ok": True, "message": "Account created — check your email to confirm."}
 
@@ -283,61 +210,74 @@ async def me(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(401, "Session expired")
 
     row = db.execute(
-        text("SELECT id, username, email, is_admin FROM users WHERE id=:id"),
+        text("SELECT id, username, email, is_admin, home_city, home_airports FROM users WHERE id=:id"),
         {"id": user_id}
     ).mappings().fetchone()
     if not row:
         raise HTTPException(401, "User not found")
 
     return {
-        "id": row["id"],
-        "username": row["username"],
-        "email": row["email"],
-        "is_admin": bool(row["is_admin"])
+        "id":            row["id"],
+        "username":      row["username"],
+        "email":         row["email"],
+        "is_admin":      bool(row["is_admin"]),
+        "home_city":     row["home_city"] or "",
+        "home_airports": row["home_airports"] or "",
     }
 
+
+
+
+class ProfileUpdate(BaseModel):
+    home_city:     Optional[str] = None
+    home_airports: Optional[str] = None  # comma-separated IATAs, max 3
+
+@router.patch("/profile")
+async def update_profile(body: ProfileUpdate, request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(401, "Not authenticated")
+    user_id = decode_session(token)
+    if not user_id:
+        raise HTTPException(401, "Session expired")
+
+    # Clean + validate airports: strip whitespace, uppercase, max 3
+    airports_clean = ""
+    if body.home_airports is not None:
+        codes = [c.strip().upper() for c in body.home_airports.replace(",", " ").split() if c.strip()]
+        codes = [c for c in codes if len(c) <= 4][:3]
+        airports_clean = ",".join(codes)
+
+    now = datetime.now(timezone.utc).isoformat()
+    updates = {}
+    if body.home_city is not None:
+        updates["home_city"] = body.home_city.strip()
+    if body.home_airports is not None:
+        updates["home_airports"] = airports_clean
+
+    if updates:
+        set_clause = ", ".join(f"{k}=:{k}" for k in updates)
+        updates["id"] = user_id
+        updates["now"] = now
+        db.execute(text(f"UPDATE users SET {set_clause}, updated_at=:now WHERE id=:id"), updates)
+        db.commit()
+
+    row = db.execute(
+        text("SELECT id, username, email, is_admin, home_city, home_airports FROM users WHERE id=:id"),
+        {"id": user_id}
+    ).mappings().fetchone()
+    return {
+        "id":            row["id"],
+        "username":      row["username"],
+        "email":         row["email"],
+        "is_admin":      bool(row["is_admin"]),
+        "home_city":     row["home_city"] or "",
+        "home_airports": row["home_airports"] or "",
+    }
 
 # ── FORGOT / RESET PASSWORD ────────────────────────────────────────────────────
 
 RESET_EXPIRY_HOURS = 1
-
-def send_reset_email(to: str, username: str, token: str):
-    link = f"{FRONTEND_URL}/reset-password?token={token}"
-    subject = "Reset your Waypoint password"
-    text = (
-        f"Hi {username},\n\n"
-        f"We received a request to reset the password for your Waypoint account.\n\n"
-        f"Reset your password here:\n{link}\n\n"
-        f"This link expires in 1 hour. If you didn't request this, you can safely ignore this email.\n\n"
-        f"— Waypoint"
-    )
-    body = (
-        f"<p style=\"margin:0 0 16px;font-size:16px;color:#4a4540;line-height:1.6;\">"
-        f"  Hi <strong style=\"color:#1a1814\">{username}</strong>,"
-        f"</p>"
-        "<p style=\"margin:0;font-size:15px;color:#4a4540;line-height:1.7;\">"
-        "  We received a request to reset the password for your Waypoint account."
-        "  Click below to choose a new password."
-        "</p>"
-    )
-    html = _email_template(
-        heading="Reset your password",
-        body_html=body,
-        cta_url=link,
-        cta_label="Reset password",
-        footnote="This link expires in 1 hour and can only be used once. If you didn't request a password reset, you can safely ignore this email — your account remains secure."
-    )
-    send_email(to, subject, html, text)
-
-
-class ForgotRequest(BaseModel):
-    email: EmailStr
-
-class ResetRequest(BaseModel):
-    token: str
-    password: str
-
-
 @router.post("/forgot-password")
 async def forgot_password(body: ForgotRequest, db: Session = Depends(get_db)):
     # Always return same response to avoid user enumeration
