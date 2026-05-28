@@ -9,6 +9,8 @@ from app.routers.segments import schedule_enrich
 from app.routers.guardrails import run_guardrails, GuardrailHit
 from app.schemas.schemas import SegmentOut
 import os, json, re, httpx
+import logging
+import logging.handlers as _lh
 from openai import OpenAI
 
 router = APIRouter(prefix="/api/parse", tags=["parse"])
@@ -361,9 +363,6 @@ async def dialog_confirm(body: DialogConfirmRequest, bg: BackgroundTasks, db: Se
 
 
 # ── Dialog quality log ────────────────────────────────────────────────────────
-import logging
-import logging.handlers as _lh
-import os as _os
 
 _dialog_log_path = _os.path.join(_os.path.dirname(__file__), "../../logs/dialog.log")
 _os.makedirs(_os.path.dirname(_dialog_log_path), exist_ok=True)

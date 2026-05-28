@@ -16,6 +16,14 @@ from sqlalchemy import text
 from openai import OpenAI
 import os, json, re as _re
 import io as _io, uuid as _uuid
+import math as _math
+import uuid as _uuid
+import json as _json
+from collections import Counter as _Counter
+from datetime import datetime as _dt, date as _date, timezone as _tz, timedelta as _td
+from sqlalchemy import text as _text
+from app.models.models import Trip as TripModel
+from fastapi.responses import HTMLResponse
 
 router = APIRouter(prefix="/api/emails", tags=["emails"])
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -92,11 +100,6 @@ Rules:
 - Return {"segments": []} if no travel data found
 """
 
-
-
-
-import math as _math
-
 def _haversine_km(lat1, lon1, lat2, lon2):
     R = 6371.0
     dlat = _math.radians(lat2 - lat1)
@@ -106,7 +109,6 @@ def _haversine_km(lat1, lon1, lat2, lon2):
 
 def _geocode_iata_or_city(name: str) -> tuple[float,float] | None:
     """Best-effort lat/lon for an IATA code or city name via Nominatim."""
-    import urllib.request, json, time
     if not name:
         return None
     q = name.strip()
@@ -140,8 +142,6 @@ def should_ask_user(db, segments: list, trips: list, user: dict = None) -> bool:
     """
     if not trips:
         return False
-
-    import urllib.parse
 
     # Build home-base exclusion set
     home_airports = set()
@@ -191,8 +191,6 @@ def should_ask_user(db, segments: list, trips: list, user: dict = None) -> bool:
     # If all endpoints are home-base, nothing is ambiguous
     if not seg_points:
         return False
-
-    from datetime import date as _date
     try:
         first_dt = _date.fromisoformat(first_date)
         last_dt  = _date.fromisoformat(last_date)
@@ -242,9 +240,6 @@ def save_orphan_segments(db, raw_email, segments_data: list, user_id: str, trips
     Create signed resolve tokens for each candidate trip + one for 'new'.
     Returns list of (token_str, trip_or_None) for email assembly.
     """
-    import uuid as _uuid, json as _json
-    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
-    from sqlalchemy import text as _text
 
     cols = Segment.__table__.columns.keys()
     seg_ids = []
@@ -283,9 +278,6 @@ def create_trip_from_segments(db, segments: list, user_id: str):
     Names the trip after the primary destination + month.
     Returns the new Trip object.
     """
-    from app.models.models import Trip as TripModel
-    import uuid as _uuid_mod
-    from datetime import datetime as _dt, timezone as _tz
 
     # Collect all departure dates to set the date range
     dates = sorted([
@@ -326,7 +318,6 @@ def create_trip_from_segments(db, segments: list, user_id: str):
                 all_endpoints.append(v.strip().upper())
 
     # Count frequency — home base appears most often (start + end of trip)
-    from collections import Counter as _Counter
     freq = _Counter(all_endpoints)
     # Most frequent endpoint is likely home — exclude it and pick first remaining destination
     most_common_count = freq.most_common(1)[0][1] if freq else 0
@@ -353,8 +344,6 @@ def create_trip_from_segments(db, segments: list, user_id: str):
         month_str = _dt.now(_tz.utc).strftime("%b %Y")
 
     trip_name = f"{primary_dest} · {month_str}" if primary_dest else f"Trip · {month_str}"
-
-    from sqlalchemy import text as _text
     trip_id = str(_uuid_mod.uuid4())
     now = _dt.now(_tz.utc).isoformat()
     db.execute(_text("""
@@ -457,7 +446,6 @@ class ReparseRequest(BaseModel):
 @router.get("/orphans")
 def get_orphans(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """Return all pending_assignment segments for the current user."""
-    from sqlalchemy import text as _text
     rows = db.execute(_text("""
         SELECT s.id, s.type, s.origin, s.destination, s.departs_at, s.arrives_at,
                s.carrier, s.confirmation_ref, s.meta, s.raw_email_id,
@@ -479,9 +467,6 @@ def resolve_assignment(token: str, db: Session = Depends(get_db)):
     One-click resolve: assign orphan segments to a trip (or create one).
     No auth required — the token IS the auth.
     """
-    import json as _json, uuid as _uuid
-    from sqlalchemy import text as _text
-    from datetime import datetime as _dt, timezone as _tz
 
     row = db.execute(_text(
         "SELECT * FROM email_tokens WHERE token=:tok AND type='assign' AND used_at IS NULL"
@@ -516,8 +501,6 @@ def resolve_assignment(token: str, db: Session = Depends(get_db)):
     db.execute(_text("UPDATE email_tokens SET used_at=:now WHERE token=:tok"),
                {"now": now, "tok": token})
     db.commit()
-
-    from fastapi.responses import HTMLResponse
     html = f"""<!DOCTYPE html><html><head><meta charset=utf-8>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>body{{font-family:Georgia,serif;background:#f5f0e8;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}}
@@ -669,8 +652,6 @@ def normalise_segments(raw):
 
 # ── PDF upload endpoint ───────────────────────────────────────────────────────
 
-from fastapi import UploadFile, File
-import io as _io
 
 @router.post("/upload-pdf")
 async def upload_pdf(
@@ -711,7 +692,6 @@ async def upload_pdf(
         pdf_text = pdf_text[:12000] + "\n[truncated]"
 
     # ── Resolve user and find/validate trip ──────────────────────────────────
-    import uuid as _uuid
     message_id = f"pdf-upload-{_uuid.uuid4().hex[:12]}"
 
     # Validate trip ownership if provided
