@@ -4005,3 +4005,67 @@ INFO:     Started server process [222288]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [222288]
+INFO:     Started server process [222399]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:35000 - "GET /api/auth/me HTTP/1.0" 200 OK
+INFO:     127.0.0.1:35006 - "GET /api/auth/me HTTP/1.0" 401 Unauthorized
+INFO:     127.0.0.1:57916 - "GET /api/auth/me HTTP/1.0" 401 Unauthorized
+INFO:     127.0.0.1:54598 - "GET /api/auth/me HTTP/1.0" 200 OK
+INFO:     127.0.0.1:54608 - "GET /api/auth/me HTTP/1.0" 200 OK
+INFO:     127.0.0.1:60788 - "GET /api/auth/me HTTP/1.0" 401 Unauthorized
+INFO:     127.0.0.1:60796 - "GET /api/trips/ HTTP/1.0" 401 Unauthorized
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [222399]
+INFO:     Started server process [223373]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:53210 - "GET /api/auth/me HTTP/1.0" 200 OK
+INFO:     127.0.0.1:51846 - "GET /api/auth/me HTTP/1.0" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [223373]
+INFO:     Started server process [223559]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49424 - "GET /api/auth/me HTTP/1.0" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [223559]
+INFO:     Started server process [223602]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55134 - "GET /api/auth/me HTTP/1.0" 200 OK
+INFO:     127.0.0.1:55136 - "GET /api/auth/me HTTP/1.0" 200 OK
+INFO:     127.0.0.1:55146 - "GET /api/auth/me HTTP/1.0" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [223602]
+INFO:     Started server process [223637]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:53156 - "GET /api/auth/me HTTP/1.0" 200 OK
+INFO:     127.0.0.1:53168 - "GET /api/auth/me HTTP/1.0" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [223637]
+INFO:     Started server process [223745]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:36126 - "GET / HTTP/1.1" 200 OK
