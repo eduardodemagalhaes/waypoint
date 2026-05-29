@@ -479,6 +479,30 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .source-email-add input:focus{border-color:var(--accent)}
 .source-email-add button{padding:9px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
 .source-email-add button:disabled{opacity:.5;cursor:not-allowed}
+.feedback-modal{position:fixed;inset:0;z-index:200;display:flex;align-items:flex-end;justify-content:center;background:rgba(26,24,20,.5)}
+.feedback-modal.hidden{display:none}
+.hidden{display:none!important}
+.feedback-sheet{background:var(--paper);border-radius:16px 16px 0 0;padding:24px 20px 32px;width:100%;max-width:520px;box-shadow:0 -4px 24px rgba(0,0,0,.12)}
+.feedback-handle{width:36px;height:4px;background:var(--paper3);border-radius:2px;margin:0 auto 20px}
+.feedback-title{font-family:var(--serif);font-size:20px;color:var(--ink);margin-bottom:16px}
+.feedback-type-toggle{display:flex;gap:0;border:1px solid var(--paper3);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.feedback-type-toggle button{flex:1;padding:9px 0;font-size:13px;font-weight:600;border:none;background:var(--paper);color:var(--ink3);cursor:pointer;transition:background .15s,color .15s}
+.feedback-type-toggle button.active{background:var(--accent);color:#fff}
+.feedback-field{margin-bottom:14px}
+.feedback-field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:5px}
+.feedback-field input,.feedback-field textarea{width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--paper3);border-radius:6px;background:var(--paper);font-family:var(--sans);font-size:14px;color:var(--ink);outline:none;resize:vertical;transition:border-color .15s}
+.feedback-field input:focus,.feedback-field textarea:focus{border-color:var(--accent)}
+.feedback-ss-label{font-size:12px;color:var(--ink3);margin-bottom:6px;display:block}
+.feedback-ss-row{display:flex;align-items:center;gap:10px}
+.feedback-ss-btn{padding:7px 14px;border:1px dashed var(--paper3);border-radius:6px;background:var(--paper2);font-size:12px;color:var(--ink3);cursor:pointer}
+.feedback-ss-name{font-size:12px;color:var(--ink3);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feedback-actions{display:flex;gap:10px;margin-top:20px}
+.feedback-actions button{flex:1;padding:12px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none}
+.feedback-submit{background:var(--accent);color:#fff}
+.feedback-cancel{background:var(--paper2);color:var(--ink2)}
+.feedback-success{text-align:center;padding:16px 0}
+.sidebar-feedback-link{display:flex;align-items:center;gap:8px;padding:9px 14px;cursor:pointer;font-size:13px;color:var(--ink3);transition:background .15s}
+.sidebar-feedback-link:hover{background:var(--paper3);color:var(--ink)}
 .avatar-upload-wrap{position:relative;width:72px;height:72px;cursor:pointer;margin-bottom:16px}
 .avatar-upload-wrap .avatar-img{width:72px;height:72px;border-radius:50%;background:var(--accent);
   display:flex;align-items:center;justify-content:center;overflow:hidden;
@@ -734,6 +758,10 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
       <div class="sidebar-profile" onclick="openSettings()">
         <span class="sidebar-profile-icon" style="font-size:13px">⚙</span>
         <span>Settings</span>
+      </div>
+      <div class="sidebar-feedback-link" onclick="openFeedback();closeSidebar()">
+        <span style="font-size:13px">💬</span>
+        <span>Report a bug / Request a feature</span>
       </div>
       <div class="sidebar-profile" onclick="doLogout()">
         <span class="sidebar-profile-icon" style="font-size:13px">↪</span>
@@ -1470,7 +1498,12 @@ async function addSourceEmail() {
       body: JSON.stringify({email})
     });
     const data = await r.json();
-    if (!r.ok) throw new Error(data.detail || 'Failed');
+    if (!r.ok) {
+      const msg = Array.isArray(data.detail)
+        ? data.detail.map(e => e.msg || JSON.stringify(e)).join(', ')
+        : (data.detail || 'Failed');
+      throw new Error(msg);
+    }
     if (input) input.value = '';
     if (msg) { msg.style.color = 'var(--green)'; msg.textContent = `✓ Confirmation sent to ${email}`; }
     loadSourceEmails();
@@ -1491,6 +1524,83 @@ async function removeSourceEmail(id, btnEl) {
   } catch(e) {
     showToast('Could not remove source email');
     btnEl.disabled = false;
+  }
+}
+
+// ── Feedback ─────────────────────────────────────────────────────────────────
+let _fbType = 'bug';
+
+function openFeedback() {
+  _fbType = 'bug';
+  const modal = document.getElementById('feedbackModal');
+  const form  = document.getElementById('feedbackForm');
+  const succ  = document.getElementById('feedbackSuccess');
+  if (!modal) return;
+  // Reset
+  document.getElementById('fbTitle').value = '';
+  document.getElementById('fbDesc').value = '';
+  document.getElementById('fbSsName').textContent = 'No file chosen';
+  document.getElementById('fbScreenshot').value = '';
+  document.getElementById('fbError').textContent = '';
+  document.getElementById('fbSubmitBtn').disabled = false;
+  document.getElementById('fbSubmitBtn').textContent = 'Send';
+  document.getElementById('fbTypeBug').classList.add('active');
+  document.getElementById('fbTypeFeature').classList.remove('active');
+  form.classList.remove('hidden');
+  succ.classList.add('hidden');
+  modal.classList.remove('hidden');
+}
+
+function closeFeedback() {
+  const modal = document.getElementById('feedbackModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function setFeedbackType(type) {
+  _fbType = type;
+  document.getElementById('fbTypeBug').classList.toggle('active', type === 'bug');
+  document.getElementById('fbTypeFeature').classList.toggle('active', type === 'feature');
+}
+
+function fbScreenshotChanged(input) {
+  const name = document.getElementById('fbSsName');
+  name.textContent = input.files[0] ? input.files[0].name : 'No file chosen';
+}
+
+async function submitFeedback() {
+  const title = document.getElementById('fbTitle').value.trim();
+  const desc  = document.getElementById('fbDesc').value.trim();
+  const err   = document.getElementById('fbError');
+  const btn   = document.getElementById('fbSubmitBtn');
+  if (!title) { err.textContent = 'Please enter a title.'; return; }
+  err.textContent = '';
+  btn.disabled = true; btn.textContent = 'Sending…';
+
+  // Auto-capture context
+  const context = window.location.href + (currentTrip ? ' | trip:' + (currentTrip.name || currentTrip.id) : '');
+
+  const fd = new FormData();
+  fd.append('type', _fbType);
+  fd.append('title', title);
+  fd.append('description', desc);
+  fd.append('context', context);
+  const ssFile = document.getElementById('fbScreenshot').files[0];
+  if (ssFile) fd.append('screenshot', ssFile);
+
+  try {
+    // Don't pass Content-Type header with FormData — browser sets it with boundary automatically
+    const {['Content-Type']:_, ...H_no_ct} = H;
+    const r = await fetch(`${API}/api/feedback`, {method:'POST', credentials:'include', headers:H_no_ct, body:fd});
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed');
+    document.getElementById('feedbackForm').classList.add('hidden');
+    const sid = document.getElementById('fbShortId');
+    if (sid) sid.textContent = data.short_id || '';
+    document.getElementById('feedbackSuccess').classList.remove('hidden');
+    setTimeout(closeFeedback, 3500);
+  } catch(e) {
+    err.textContent = e.message || 'Could not send feedback';
+    btn.disabled = false; btn.textContent = 'Send';
   }
 }
 
@@ -4157,5 +4267,45 @@ document.addEventListener('DOMContentLoaded', () => {
   if (fe) fe.addEventListener('keydown', e => { if(e.key==='Enter') doForgot(); });
 });
 </script>
+
+<div class="feedback-modal hidden" id="feedbackModal" onclick="if(event.target===this)closeFeedback()">
+  <div class="feedback-sheet" id="feedbackSheet">
+    <div class="feedback-handle"></div>
+    <div id="feedbackForm">
+      <div class="feedback-title">Send feedback</div>
+      <div class="feedback-type-toggle">
+        <button id="fbTypeBug" class="active" onclick="setFeedbackType('bug')">🐛 Bug report</button>
+        <button id="fbTypeFeature" onclick="setFeedbackType('feature')">✨ Feature request</button>
+      </div>
+      <div class="feedback-field">
+        <label>Title</label>
+        <input type="text" id="fbTitle" placeholder="Brief summary…" maxlength="120">
+      </div>
+      <div class="feedback-field">
+        <label>Description</label>
+        <textarea id="fbDesc" rows="4" placeholder="What happened? What did you expect?"></textarea>
+      </div>
+      <div class="feedback-field">
+        <label class="feedback-ss-label">Screenshot <span style="font-weight:400;text-transform:none">(optional)</span></label>
+        <div class="feedback-ss-row">
+          <button class="feedback-ss-btn" onclick="document.getElementById('fbScreenshot').click()">Attach image</button>
+          <span class="feedback-ss-name" id="fbSsName">No file chosen</span>
+          <input type="file" id="fbScreenshot" accept="image/*" style="display:none" onchange="fbScreenshotChanged(this)">
+        </div>
+      </div>
+      <div id="fbError" style="font-size:12px;color:#c0522a;min-height:16px;margin-top:4px"></div>
+      <div class="feedback-actions">
+        <button class="feedback-actions feedback-cancel" onclick="closeFeedback()">Cancel</button>
+        <button class="feedback-actions feedback-submit" id="fbSubmitBtn" onclick="submitFeedback()">Send</button>
+      </div>
+    </div>
+    <div class="feedback-success hidden" id="feedbackSuccess">
+      <div style="font-size:32px;margin-bottom:12px">✓</div>
+      <div style="font-family:var(--serif);font-size:18px;color:var(--ink);margin-bottom:8px">Thanks!</div>
+      <div style="font-size:14px;color:var(--ink3);margin-bottom:10px">Your feedback has been sent.</div>
+      <div id="fbShortId" style="font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--accent);background:var(--paper2);padding:5px 14px;border-radius:20px;display:inline-block"></div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
