@@ -35,14 +35,37 @@ def _extract_email(addr: str) -> str:
     m = _re.search(r'<([^>]+)>', addr)
     return (m.group(1) if m else addr).strip().lower()
 
-def lookup_user_by_email(db, sender_email: str):
-    """Return user row for a verified sender, or None."""
+def _should_send_bounce(db, sender_email: str) -> bool:
+    """Return True if we should still send an unregistered bounce to this sender.
+    Suppresses after 3 bounces in 24h to prevent reply amplification."""
     clean = _extract_email(sender_email)
+    cutoff = (_dt.now(_tz.utc) - _td(hours=24)).isoformat()
+    count = db.execute(
+        text("SELECT COUNT(*) FROM raw_emails WHERE LOWER(from_address) LIKE :pat AND parse_status='unregistered' AND received_at > :cutoff"),
+        {"pat": f"%{clean}%", "cutoff": cutoff}
+    ).scalar() or 0
+    return count < 3
+
+
+def lookup_user_by_email(db, sender_email: str):
+    """Return user row for a verified sender (primary or source email), or None."""
+    clean = _extract_email(sender_email)
+    # Check primary account email
     row = db.execute(
-        text("SELECT id, username, email FROM users WHERE LOWER(email)=:email AND is_verified=1"),
+        text("SELECT id, username, email, home_city, home_airports FROM users WHERE LOWER(email)=:email AND is_verified=1"),
         {"email": clean}
     ).mappings().fetchone()
-    return dict(row) if row else None
+    if row:
+        return dict(row)
+    # Check confirmed source emails
+    src = db.execute(
+        text("""SELECT u.id, u.username, u.email, u.home_city, u.home_airports
+                FROM user_source_emails se
+                JOIN users u ON se.user_id = u.id
+                WHERE LOWER(se.email)=:email AND se.status='confirmed' AND u.is_verified=1"""),
+        {"email": clean}
+    ).mappings().fetchone()
+    return dict(src) if src else None
 
 
 SYSTEM = """Extract ALL travel segments from this booking confirmation email.
@@ -526,7 +549,15 @@ def ingest_email(body: IngestRequest, bg: BackgroundTasks, db: Session = Depends
     sender_clean = _extract_email(body.from_address)
     user = lookup_user_by_email(db, sender_clean)
     if not user:
-        send_unregistered_reply(sender_clean)
+        # Store raw record so rate-limit counter works
+        raw_unregd = RawEmail(
+            message_id=body.message_id, from_address=body.from_address,
+            subject=body.subject, body_text=body.body_text,
+            parse_status="unregistered"
+        )
+        db.add(raw_unregd); db.commit()
+        if _should_send_bounce(db, sender_clean):
+            send_unregistered_reply(sender_clean)
         return IngestResponse(ok=False, message_id=body.message_id,
                               parse_status="unregistered",
                               error=f"Sender {sender_clean} not registered")

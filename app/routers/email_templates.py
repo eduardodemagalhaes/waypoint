@@ -355,12 +355,15 @@ def send_ingest_reply(to: str, status: str, subject: str,
 def send_unregistered_reply(to: str):
     """Send a branded reply when sender is not a registered user."""
     register_url = FRONTEND_URL
+    profile_url  = f"{FRONTEND_URL}#profile"
     subject = "Waypoint — we don't recognise this email address"
     body_text = (
         f"Hi,\n\n"
         f"We received your forwarded email but couldn't match {to} to a Waypoint account.\n\n"
-        f"To use Waypoint, register at:\n{register_url}\n\n"
-        f"Once registered, forward your travel confirmation emails to waypoint@emdm.ch "
+        f"There are two ways to fix this:\n"
+        f"1. Create a new Waypoint account using this email address:\n   {register_url}\n\n"
+        f"2. Already have an account? Add {to} as a source email in your Profile:\n   {profile_url}\n\n"
+        f"Once set up, forward your travel confirmation emails to waypoint@emdm.ch "
         f"and we'll build your itinerary automatically.\n\n"
         f"— Waypoint"
     )
@@ -369,12 +372,13 @@ def send_unregistered_reply(to: str):
         "  We received your forwarded email but couldn&#39;t find a Waypoint account"
         f" registered to <strong style=\"color:#1a1814\">{to}</strong>."
         "</p>"
-        "<p style=\"margin:0;font-size:15px;color:#4a4540;line-height:1.7;\">"
-        "  Create a free account — make sure to register with this exact email address."
-        "  Once you&#39;re in, forward any travel confirmation to"
-        "  <strong style=\"color:#1a1814\">waypoint@emdm.ch</strong>"
-        "  and we&#39;ll build your itinerary automatically."
+        "<p style=\"margin:0 0 12px;font-size:15px;color:#4a4540;line-height:1.7;\">"
+        "  There are two ways to fix this:"
         "</p>"
+        "<ul style=\"margin:0 0 16px;padding-left:20px;font-size:14px;color:#4a4540;line-height:1.8;\">"
+        "  <li><strong>New to Waypoint?</strong> Create a free account — use this exact email address when you register.</li>"
+        f"  <li><strong>Already have an account?</strong> Log in and add <em>{to}</em> as a source email in your Profile.</li>"
+        "</ul>"
     )
     html = _email_template(
         heading="Email not recognised",

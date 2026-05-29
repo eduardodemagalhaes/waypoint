@@ -58,3 +58,12 @@ class RawEmail(Base):
     received_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     trip     = relationship("Trip", back_populates="raw_emails")
     segments = relationship("Segment", back_populates="raw_email")
+
+class UserSourceEmail(Base):
+    __tablename__ = "user_source_emails"
+    id          = Column(String, primary_key=True, default=new_uuid)
+    user_id     = Column(String, nullable=False)
+    email       = Column(String, nullable=False)
+    status      = Column(String, nullable=False, default="pending")
+    created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    verified_at = Column(DateTime, nullable=True)
