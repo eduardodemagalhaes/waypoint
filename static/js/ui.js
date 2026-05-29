@@ -1,3 +1,5 @@
+const UPCOMING_LIMIT = 4;
+
 // ── THEME ────────────────────────────────────────────────────
 function getTheme() {
   return localStorage.getItem('wp_theme') || 'system';
@@ -200,7 +202,6 @@ function copyEmailAddr(el) {
 }
 
 // ── SIDEBAR ──────────────────────────────────────────────────
-const UPCOMING_LIMIT = 4;
 
 function renderSidebar() {
   const today = new Date().toISOString().slice(0,10);
