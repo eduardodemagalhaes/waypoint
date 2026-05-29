@@ -1,0 +1,27 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="128" height="128">
+  <rect width="100" height="100" fill="#f5f0e8"/>
+  
+  <circle cx="50" cy="50" r="42" fill="#d4bfa0"/>
+  <circle cx="50" cy="50" r="42" stroke="#8c3d0a" stroke-width="3" fill="none"/>
+  <circle cx="50" cy="50" r="34" fill="#f5f0e8"/>
+  <line x1="50.0" y1="22.0" x2="50.0" y2="17.0" stroke="#b89a7a" stroke-width="2.5"/><line x1="64.0" y1="25.8" x2="66.5" y2="21.4" stroke="#b89a7a" stroke-width="1"/><line x1="74.2" y1="36.0" x2="78.6" y2="33.5" stroke="#b89a7a" stroke-width="1"/><line x1="78.0" y1="50.0" x2="83.0" y2="50.0" stroke="#b89a7a" stroke-width="2.5"/><line x1="74.2" y1="64.0" x2="78.6" y2="66.5" stroke="#b89a7a" stroke-width="1"/><line x1="64.0" y1="74.2" x2="66.5" y2="78.6" stroke="#b89a7a" stroke-width="1"/><line x1="50.0" y1="78.0" x2="50.0" y2="83.0" stroke="#b89a7a" stroke-width="2.5"/><line x1="36.0" y1="74.2" x2="33.5" y2="78.6" stroke="#b89a7a" stroke-width="1"/><line x1="25.8" y1="64.0" x2="21.4" y2="66.5" stroke="#b89a7a" stroke-width="1"/><line x1="22.0" y1="50.0" x2="17.0" y2="50.0" stroke="#b89a7a" stroke-width="2.5"/><line x1="25.8" y1="36.0" x2="21.4" y2="33.5" stroke="#b89a7a" stroke-width="1"/><line x1="36.0" y1="25.8" x2="33.5" y2="21.4" stroke="#b89a7a" stroke-width="1"/>
+  <text x="50" y="24" text-anchor="middle" font-size="8" font-weight="700" fill="#8c3d0a" font-family="Georgia,serif">N</text>
+  <text x="50" y="80" text-anchor="middle" font-size="8" fill="#5a504a" font-family="Georgia,serif">S</text>
+  <text x="78" y="53" text-anchor="middle" font-size="8" fill="#5a504a" font-family="Georgia,serif">E</text>
+  <text x="22" y="53" text-anchor="middle" font-size="8" fill="#5a504a" font-family="Georgia,serif">W</text>
+  <!-- needle N (red) -->
+  <polygon points="50,20 46,50 50,53 54,50" fill="#c4611a"/>
+  <!-- needle S -->
+  <polygon points="50,80 46,50 50,53 54,50" fill="#5a504a"/>
+  <!-- eyes flanking centre -->
+  <circle cx="40" cy="47" r="4.5" fill="#f5f0e8" stroke="#b89a7a" stroke-width=".8"/>
+  <circle cx="60" cy="47" r="4.5" fill="#f5f0e8" stroke="#b89a7a" stroke-width=".8"/>
+  <circle cx="40" cy="47" r="2.5" fill="#2c2825"/>
+  <circle cx="60" cy="47" r="2.5" fill="#2c2825"/>
+  <circle cx="40.9" cy="46.1" r="1" fill="#f5f0e8"/>
+  <circle cx="60.9" cy="46.1" r="1" fill="#f5f0e8"/>
+  <!-- smile -->
+  <path d="M40 55 Q50 61 60 55" stroke="#5a504a" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <circle cx="50" cy="50" r="3.5" fill="#8c3d0a"/>
+
+</svg>

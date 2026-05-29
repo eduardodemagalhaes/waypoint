@@ -479,6 +479,26 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .source-email-add input:focus{border-color:var(--accent)}
 .source-email-add button{padding:9px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
 .source-email-add button:disabled{opacity:.5;cursor:not-allowed}
+.avatar-upload-wrap{position:relative;width:72px;height:72px;cursor:pointer;margin-bottom:16px}
+.avatar-upload-wrap .avatar-img{width:72px;height:72px;border-radius:50%;background:var(--accent);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+  font-size:24px;font-weight:700;color:#fff;font-family:var(--serif);
+  box-shadow:0 2px 10px rgba(0,0,0,.12),0 0 0 3px var(--paper3)}
+.avatar-upload-wrap .avatar-img img{width:100%;height:100%;object-fit:cover}
+.avatar-upload-overlay{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.38);
+  display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;pointer-events:none}
+.avatar-upload-wrap:hover .avatar-upload-overlay{opacity:1}
+.avatar-upload-overlay span{font-size:11px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.05em}
+.avatar-upload-hint{font-size:11px;color:var(--ink4);margin-top:2px}
+.avatar-picker{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.avatar-picker-item{width:44px;height:44px;border-radius:50%;background:var(--paper);
+  border:2px solid var(--paper3);cursor:pointer;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color .15s,transform .15s;flex-shrink:0}
+.avatar-picker-item:hover{border-color:var(--accent);transform:scale(1.08)}
+.avatar-picker-item.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.avatar-picker-item img{width:100%;height:100%;object-fit:cover}
+.avatar-picker-label{font-size:11px;color:var(--ink4);margin-bottom:4px}
 
 .pdf-drop-zone{border:2px dashed var(--paper3);border-radius:10px;padding:28px 20px;
   text-align:center;cursor:pointer;transition:all .2s;margin-bottom:1.5rem;
@@ -1319,7 +1339,19 @@ function renderProfilePage(container) {
     <div id="prof-personal">
       <div class="profile-section">
         <div class="profile-section-title">Account</div>
-        <div class="profile-field">
+        <div class="avatar-upload-wrap" onclick="document.getElementById('avatarFileInput').click()" title="Change avatar">
+          <div class="avatar-img" id="profAvatarCircle">
+            ${currentUser.avatar_url
+              ? '<img src="' + currentUser.avatar_url + (currentUser.avatar_url.endsWith('.svg') ? '' : '?v=' + Date.now()) + '" alt="avatar">'
+              : ((currentUser.username||'?').slice(0,1).toUpperCase()+((currentUser.username||'').split(' ')[1]||'').slice(0,1).toUpperCase())}
+          </div>
+          <div class="avatar-upload-overlay"><span>Change</span></div>
+        </div>
+        <div class="avatar-upload-hint">Tap to upload your own photo, or pick one below</div>
+        <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="uploadAvatar(this)">
+        <div class="avatar-picker-label" style="margin-top:14px">Or choose a default</div>
+        <div class="avatar-picker" id="avatarPicker"></div>
+        <div class="profile-field" style="margin-top:14px">
           <label>Email</label>
           <input type="email" value="${currentUser.email || ''}" disabled style="opacity:.6;cursor:not-allowed">
         </div>
@@ -1374,6 +1406,18 @@ function renderProfilePage(container) {
   </div>`;
 
   loadSourceEmails();
+  renderAvatarPicker();
+}
+
+function renderAvatarPicker() {
+  const picker = document.getElementById('avatarPicker');
+  if (!picker) return;
+  const names = ['train','plane','bag','passport','compass','camera','bell','globe'];
+  picker.innerHTML = names.map(n => {
+    const url = '/avatars/defaults/' + n + '.svg';
+    const sel = (currentUser.avatar_url === url) ? ' selected' : '';
+    return '<div class="avatar-picker-item' + sel + '" onclick="pickDefaultAvatar(\'' + n + '\')" title="' + n + '"><img src="' + url + '" alt="' + n + '"></div>';
+  }).join('');
 }
 
 function profAnchorClick(e, section) {
@@ -1448,6 +1492,60 @@ async function removeSourceEmail(id, btnEl) {
     showToast('Could not remove source email');
     btnEl.disabled = false;
   }
+}
+
+async function pickDefaultAvatar(name) {
+  const url = `/avatars/defaults/${name}.svg`;
+  if (currentUser.avatar_url === url) return;
+  try {
+    const r = await fetch(`${API}/api/auth/avatar/pick`, {
+      method:'POST', credentials:'include',
+      headers:{...H,'Content-Type':'application/json'},
+      body: JSON.stringify({name})
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Failed');
+    currentUser.avatar_url = data.avatar_url;
+    renderUserPill();
+    // Update large circle
+    const circle = document.getElementById('profAvatarCircle');
+    if (circle) circle.innerHTML = `<img src="${data.avatar_url}" alt="avatar">`;
+    // Update picker selection
+    renderAvatarPicker();
+  } catch(e) {
+    showToast(e.message || 'Could not update avatar');
+  }
+}
+
+async function uploadAvatar(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  const circle = document.getElementById('profAvatarCircle');
+  if (circle) { circle.style.opacity = '.5'; }
+  try {
+    const r = await fetch(`${API}/api/auth/avatar`, {
+      method:'POST', credentials:'include', headers:H, body:fd
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Upload failed');
+    currentUser.avatar_url = data.avatar_url;
+    renderUserPill();
+    // Update circle in profile
+    if (circle) {
+      circle.style.opacity = '1';
+      const ts = Date.now();
+      circle.innerHTML = data.avatar_url.endsWith('.svg')
+        ? `<img src="${data.avatar_url}" alt="avatar">`
+        : `<img src="${data.avatar_url}?v=${ts}" alt="avatar">`;
+    }
+    showToast('Avatar updated ✓');
+  } catch(e) {
+    showToast(e.message || 'Could not upload avatar');
+    if (circle) circle.style.opacity = '1';
+  }
+  input.value = '';
 }
 
 async function resendSourceEmail(id, btnEl) {
@@ -1527,10 +1625,13 @@ function openSegDetails(id) {
       add('Dep timezone', seg.departs_tz); add('Arr timezone', seg.arrives_tz);
     } else if (seg.departs_tz) { add('Timezone', seg.departs_tz); }
     add('Ref', seg.confirmation_ref);
-    add('Dep terminal', m.terminal_departure ? (m.terminal_hint ? `${m.terminal_departure} ·  typical` : m.terminal_departure) : null);
-    add('Dep gate', m.gate != null ? m.gate : (m.enrich_status === 'ok' ? 'TBA' : null));
+    add('Dep terminal', m.terminal_departure ? (m.terminal_hint ? `${m.terminal_departure} · typical` : m.terminal_departure) : null);
+    // Gates always shown; display '—' until 36h before departure (unreliable before then)
+    const _hoursUntilDep = seg.departs_at ? (new Date(seg.departs_at) - new Date()) / 3.6e6 : -1;
+    const _gateReady = _hoursUntilDep <= 36 && _hoursUntilDep > -6;
+    add('Dep gate', _gateReady ? (m.gate || (m.enrich_status === 'ok' ? 'TBA' : null)) : '—');
     add('Arr terminal', m.terminal_arrival || null);
-    add('Arr gate', m.gate_arrival || null);
+    add('Arr gate', _gateReady ? (m.gate_arrival || '—') : '—');
     add('Boarding', m.boarding_time);
     add('Seat', m.seat);
     add('Cabin', m.cabin_class);
@@ -2074,6 +2175,7 @@ function sidebarSelect(tripId) {
 let currentFolder = null; // 'past' | 'future' | null
 
 function openFolder(which) {
+  if (currentFolder === which) { closeFolderView(); renderSidebar(); return; }
   currentFolder = which;
   currentTrip = null;
   closeSidebar();

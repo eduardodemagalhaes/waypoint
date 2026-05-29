@@ -1,0 +1,31 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="128" height="128">
+  <rect width="100" height="100" fill="#f5f0e8"/>
+  
+  <!-- stand -->
+  <ellipse cx="50" cy="92" rx="20" ry="6" fill="#b89a7a"/>
+  <rect x="46" y="76" width="8" height="18" rx="4" fill="#b89a7a"/>
+  <!-- ring -->
+  <ellipse cx="50" cy="50" rx="40" ry="12" fill="none" stroke="#b89a7a" stroke-width="4" transform="rotate(-30 50 50)"/>
+  <!-- sphere -->
+  <circle cx="50" cy="50" r="34" fill="#7a9ab0"/>
+  <!-- land masses -->
+  <ellipse cx="40" cy="40" rx="13" ry="10" fill="#6b7f5e" opacity=".85" transform="rotate(-10 40 40)"/>
+  <ellipse cx="60" cy="54" rx="10" ry="14" fill="#6b7f5e" opacity=".85" transform="rotate(15 60 54)"/>
+  <ellipse cx="38" cy="62" rx="8" ry="6" fill="#6b7f5e" opacity=".7"/>
+  <!-- latitude lines -->
+  <ellipse cx="50" cy="50" rx="34" ry="9" stroke="#f5f0e8" stroke-width="1" fill="none" opacity=".4"/>
+  <ellipse cx="50" cy="50" rx="34" ry="18" stroke="#f5f0e8" stroke-width=".8" fill="none" opacity=".3"/>
+  <ellipse cx="50" cy="50" rx="12" ry="34" stroke="#f5f0e8" stroke-width=".8" fill="none" opacity=".3"/>
+  <!-- eyes -->
+  <circle cx="41" cy="46" r="5" fill="#f5f0e8"/>
+  <circle cx="59" cy="46" r="5" fill="#f5f0e8"/>
+  <circle cx="41" cy="46" r="3" fill="#2c2825"/>
+  <circle cx="59" cy="46" r="3" fill="#2c2825"/>
+  <circle cx="42.1" cy="44.9" r="1.2" fill="#f5f0e8"/>
+  <circle cx="60.1" cy="44.9" r="1.2" fill="#f5f0e8"/>
+  <!-- smile -->
+  <path d="M40 56 Q50 63 60 56" stroke="#f5f0e8" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+  <!-- shine -->
+  <circle cx="38" cy="34" r="8" fill="#f5f0e8" opacity=".15"/>
+
+</svg>

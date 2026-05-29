@@ -4,7 +4,7 @@ Routes:
   POST /api/auth/register        → create unverified user, send confirmation email
   GET  /api/auth/verify-email    → verify token, activate account
 """
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
@@ -75,9 +75,13 @@ async def register(body: RegisterRequest, db: Session = Depends(get_db)):
     user_id = str(uuid.uuid4())
     pw_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
 
-    db.execute(text("""INSERT INTO users (id, username, email, password_hash, is_verified, is_admin, created_at, updated_at)
-           VALUES (:id, :username, :email, :pw, 0, 0, :now, :now)"""),
-        {"id": user_id, "username": username, "email": body.email, "pw": pw_hash, "now": now}
+    import random as _random
+    _default_avatar = f"/avatars/defaults/{_random.choice(AVATAR_DEFAULTS)}.svg"
+
+    db.execute(text("""INSERT INTO users (id, username, email, password_hash, is_verified, is_admin, avatar_url, created_at, updated_at)
+           VALUES (:id, :username, :email, :pw, 0, 0, :avatar_url, :now, :now)"""),
+        {"id": user_id, "username": username, "email": body.email, "pw": pw_hash,
+         "avatar_url": _default_avatar, "now": now}
     )
     db.commit()
 
@@ -210,7 +214,7 @@ async def me(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(401, "Session expired")
 
     row = db.execute(
-        text("SELECT id, username, email, is_admin, home_city, home_airports FROM users WHERE id=:id"),
+        text("SELECT id, username, email, is_admin, home_city, home_airports, avatar_url FROM users WHERE id=:id"),
         {"id": user_id}
     ).mappings().fetchone()
     if not row:
@@ -223,6 +227,7 @@ async def me(request: Request, db: Session = Depends(get_db)):
         "is_admin":      bool(row["is_admin"]),
         "home_city":     row["home_city"] or "",
         "home_airports": row["home_airports"] or "",
+        "avatar_url":    row["avatar_url"] or "",
     }
 
 
@@ -263,7 +268,7 @@ async def update_profile(body: ProfileUpdate, request: Request, db: Session = De
         db.commit()
 
     row = db.execute(
-        text("SELECT id, username, email, is_admin, home_city, home_airports FROM users WHERE id=:id"),
+        text("SELECT id, username, email, is_admin, home_city, home_airports, avatar_url FROM users WHERE id=:id"),
         {"id": user_id}
     ).mappings().fetchone()
     return {
@@ -273,6 +278,7 @@ async def update_profile(body: ProfileUpdate, request: Request, db: Session = De
         "is_admin":      bool(row["is_admin"]),
         "home_city":     row["home_city"] or "",
         "home_airports": row["home_airports"] or "",
+        "avatar_url":    row["avatar_url"] or "",
     }
 
 # ── FORGOT / RESET PASSWORD ────────────────────────────────────────────────────
@@ -338,3 +344,86 @@ async def reset_password(body: ResetRequest, db: Session = Depends(get_db)):
     db.commit()
 
     return {"ok": True, "message": "Password updated — you can now log in."}
+
+# ── Avatar endpoints ──────────────────────────────────────────────────────────
+
+AVATAR_DEFAULTS = ["train","plane","bag","passport","compass","camera","bell","globe"]
+
+@router.post("/avatar")
+async def upload_avatar(
+    request: Request,
+    file: UploadFile = File(None),
+    db: Session = Depends(get_db),
+):
+    import io, random, os as _os
+    from PIL import Image as _Image
+
+    token = request.cookies.get(COOKIE_NAME)
+    if not token: raise HTTPException(401, "Not authenticated")
+    user_id = decode_session(token)
+    if not user_id: raise HTTPException(401, "Session expired")
+
+    static_dir = _os.path.join(_os.path.dirname(__file__), "..", "..", "static")
+    avatars_dir = _os.path.join(static_dir, "avatars")
+    _os.makedirs(avatars_dir, exist_ok=True)
+
+    if file is None:
+        import random as _random
+        name = _random.choice(AVATAR_DEFAULTS)
+        avatar_url = f"/avatars/defaults/{name}.svg"
+    else:
+        data = await file.read()
+        if len(data) > 5 * 1024 * 1024:
+            raise HTTPException(413, "Image too large — maximum 5 MB")
+        try:
+            img = _Image.open(io.BytesIO(data)).convert("RGB")
+            w, h = img.size
+            m = min(w, h)
+            left = (w - m) // 2; top = (h - m) // 2
+            img = img.crop((left, top, left + m, top + m))
+            img = img.resize((128, 128), _Image.LANCZOS)
+        except Exception as e:
+            raise HTTPException(422, f"Could not process image: {e}")
+        filename = f"{user_id}.jpg"
+        save_path = _os.path.join(avatars_dir, filename)
+        img.save(save_path, "JPEG", quality=90)
+        avatar_url = f"/avatars/{filename}"
+
+    now = datetime.now(timezone.utc).isoformat()
+    db.execute(text("UPDATE users SET avatar_url=:url, updated_at=:now WHERE id=:id"),
+               {"url": avatar_url, "now": now, "id": user_id})
+    db.commit()
+    return {"ok": True, "avatar_url": avatar_url}
+
+
+@router.post("/avatar/reset")
+async def reset_avatar(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token: raise HTTPException(401, "Not authenticated")
+    user_id = decode_session(token)
+    if not user_id: raise HTTPException(401, "Session expired")
+    now = datetime.now(timezone.utc).isoformat()
+    db.execute(text("UPDATE users SET avatar_url=NULL, updated_at=:now WHERE id=:id"),
+               {"now": now, "id": user_id})
+    db.commit()
+    return {"ok": True, "avatar_url": ""}
+
+
+
+class AvatarPickRequest(BaseModel):
+    name: str
+
+@router.post("/avatar/pick")
+async def pick_default_avatar(body: AvatarPickRequest, request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token: raise HTTPException(401, "Not authenticated")
+    user_id = decode_session(token)
+    if not user_id: raise HTTPException(401, "Session expired")
+    if body.name not in AVATAR_DEFAULTS:
+        raise HTTPException(400, "Invalid avatar name")
+    avatar_url = f"/avatars/defaults/{body.name}.svg"
+    now = datetime.now(timezone.utc).isoformat()
+    db.execute(text("UPDATE users SET avatar_url=:url, updated_at=:now WHERE id=:id"),
+               {"url": avatar_url, "now": now, "id": user_id})
+    db.commit()
+    return {"ok": True, "avatar_url": avatar_url}

@@ -1,0 +1,41 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="128" height="128">
+  <rect width="100" height="100" fill="#f5f0e8"/>
+  
+  <!-- body -->
+  <rect x="10" y="45" width="62" height="32" rx="10" fill="#c4611a"/>
+  <!-- cab (right, contains face) -->
+  <rect x="55" y="28" width="22" height="28" rx="8" fill="#8c3d0a"/>
+  <!-- cab window / face -->
+  <rect x="58" y="32" width="16" height="14" rx="5" fill="#e07a3a"/>
+  <!-- eyes -->
+  <circle cx="63" cy="39" r="3" fill="#f5f0e8"/>
+  <circle cx="71" cy="39" r="3" fill="#f5f0e8"/>
+  <circle cx="63" cy="39" r="1.7" fill="#2c2825"/>
+  <circle cx="71" cy="39" r="1.7" fill="#2c2825"/>
+  <circle cx="63.7" cy="38.3" r=".7" fill="#f5f0e8"/>
+  <circle cx="71.7" cy="38.3" r=".7" fill="#f5f0e8"/>
+  <!-- smile -->
+  <path d="M61 44 Q67 47.5 73 44" stroke="#f5f0e8" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <!-- chimney -->
+  <rect x="63" y="18" width="8" height="12" rx="3" fill="#b89a7a"/>
+  <ellipse cx="67" cy="18" rx="6" ry="3" fill="#d4bfa0"/>
+  <!-- smoke -->
+  <circle cx="67" cy="12" r="4" fill="#d4bfa0" opacity=".7"/>
+  <circle cx="73" cy="8" r="3" fill="#d4bfa0" opacity=".45"/>
+  <!-- carriage windows -->
+  <rect x="16" y="50" width="12" height="10" rx="3" fill="#f5f0e8" opacity=".7"/>
+  <rect x="32" y="50" width="12" height="10" rx="3" fill="#f5f0e8" opacity=".7"/>
+  <!-- wheels -->
+  <circle cx="22" cy="80" r="9" fill="#2c2825"/>
+  <circle cx="22" cy="80" r="5.5" fill="#8c3d0a"/>
+  <circle cx="22" cy="80" r="2" fill="#d4bfa0"/>
+  <circle cx="44" cy="80" r="9" fill="#2c2825"/>
+  <circle cx="44" cy="80" r="5.5" fill="#8c3d0a"/>
+  <circle cx="44" cy="80" r="2" fill="#d4bfa0"/>
+  <circle cx="66" cy="80" r="9" fill="#2c2825"/>
+  <circle cx="66" cy="80" r="5.5" fill="#8c3d0a"/>
+  <circle cx="66" cy="80" r="2" fill="#d4bfa0"/>
+  <!-- rail -->
+  <rect x="5" y="88" width="90" height="4" rx="2" fill="#b89a7a"/>
+
+</svg>
