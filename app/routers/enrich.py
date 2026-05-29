@@ -742,6 +742,16 @@ async def search_connections(
             return {"connections": db_results, "source": "db-vendo", "fallback": None}
         log.info("DB Vendo: no results for %s → %s, falling through to SBB", from_station, to_station)
 
+    # ── Try ÖBB for Austrian/Italian routes ───────────────────────────────────
+    if _is_austrian_or_italian_station(from_station) or _is_austrian_or_italian_station(to_station):
+        log.info("ÖBB: trying Austrian/Italian route %s → %s", from_station, to_station)
+        oebb_results = await _search_oebb(
+            from_station, to_station, datetime_str, arrive_before, limit
+        )
+        if oebb_results:
+            return {"connections": oebb_results, "source": "oebb", "fallback": None}
+        log.info("ÖBB: no results for %s → %s, falling through to SBB", from_station, to_station)
+
     from_st = await resolve(from_station)
     to_st   = await resolve(to_station)
 
@@ -883,9 +893,158 @@ def _build_fallback(from_st, to_st, reason, detail=None,
     }
 
 
+
+
+# ── ÖBB (Austrian Federal Railways) connection search ────────────────────────
+
+async def _search_oebb(
+    from_station: str,
+    to_station: str,
+    datetime_str: str,
+    arrive_before: str | None = None,
+    limit: int = 4,
+) -> list[dict]:
+    """
+    Query v6.oebb.transport.rest for journeys.
+    Covers Austria + cross-border routes into Germany and Italy.
+    Returns same shape as _search_db_vendo / transport.opendata.ch results.
+    """
+    headers = {"User-Agent": "waypoint/1.0 trip.helper@emdm.ch", "Accept": "application/json"}
+
+    async def resolve_oebb(name: str) -> dict | None:
+        try:
+            async with httpx.AsyncClient(timeout=6, headers=headers) as c:
+                r = await c.get(f"{OEBB_API}/locations",
+                                params={"query": name, "results": 1})
+                r.raise_for_status()
+                stations = r.json()
+                return stations[0] if stations else None
+        except Exception as e:
+            log.warning("oebb location lookup failed for %s: %s", name, e)
+            return None
+
+    from_st = await resolve_oebb(from_station)
+    to_st   = await resolve_oebb(to_station)
+    if not from_st or not to_st:
+        return []
+
+    # Parse datetime into ISO with Vienna timezone
+    try:
+        import zoneinfo as _zi
+        dt_naive = datetime.strptime(datetime_str[:16], "%Y-%m-%d %H:%M")
+        tz_vienna = _zi.ZoneInfo("Europe/Vienna")
+        dt_local  = dt_naive.replace(tzinfo=tz_vienna)
+        offset    = dt_local.strftime("%z")
+        offset_fmt = offset[:3] + ":" + offset[3:]
+        iso_dt    = dt_naive.strftime("%Y-%m-%dT%H:%M:00") + offset_fmt
+    except Exception:
+        iso_dt = None
+
+    params: dict = {
+        "from":    from_st["id"],
+        "to":      to_st["id"],
+        "results": limit,
+    }
+    if arrive_before:
+        try:
+            arr_dt = datetime.strptime(arrive_before[:16], "%Y-%m-%d %H:%M")
+            params["arrival"] = arr_dt.strftime("%Y-%m-%dT%H:%M:00.000Z")
+        except ValueError:
+            pass
+    elif iso_dt:
+        params["departure"] = iso_dt
+
+    try:
+        async with httpx.AsyncClient(timeout=12, headers=headers) as c:
+            r = await c.get(f"{OEBB_API}/journeys", params=params)
+            r.raise_for_status()
+            data = r.json()
+    except Exception as e:
+        log.warning("oebb journeys error (%s → %s): %s", from_station, to_station, e)
+        return []
+
+    results = []
+    for journey in data.get("journeys", []):
+        legs = journey.get("legs", [])
+        if not legs: continue
+        first = legs[0]
+        last  = legs[-1]
+        # Skip walk-only journeys
+        if all(leg.get("walking") for leg in legs): continue
+
+        dep_str = (first.get("departure") or first.get("plannedDeparture") or "")[:16].replace("T", " ")
+        arr_str = (last.get("arrival")    or last.get("plannedArrival")    or "")[:16].replace("T", " ")
+        dep_platform = first.get("departurePlatform") or first.get("plannedDeparturePlatform")
+        arr_platform = last.get("arrivalPlatform")    or last.get("plannedArrivalPlatform")
+
+        # Build leg summary
+        train_legs = [l for l in legs if not l.get("walking")]
+        line_names = []
+        for l in train_legs:
+            ln = (l.get("line") or {}).get("name")
+            if ln and ln not in line_names:
+                line_names.append(ln)
+
+        transfers = max(0, len(train_legs) - 1)
+
+        # Compute duration string (same format as DB Vendo)
+        duration = ""
+        if dep_str and arr_str:
+            try:
+                d = datetime.strptime(dep_str, "%Y-%m-%d %H:%M")
+                a = datetime.strptime(arr_str, "%Y-%m-%d %H:%M")
+                mins = int((a - d).total_seconds() // 60)
+                duration = f"{mins // 60:02d}d{mins % 60:02d}:{00:02d}"
+            except Exception:
+                pass
+
+        results.append({
+            "departs":      dep_str,
+            "arrives":      arr_str,
+            "duration":     duration,
+            "platform_dep": str(dep_platform) if dep_platform else None,
+            "platform_arr": str(arr_platform) if arr_platform else None,
+            "transfers":    transfers,
+            "carrier":      " / ".join(line_names) if line_names else None,
+            "from_name":    from_st.get("name", from_station),
+            "to_name":      to_st.get("name", to_station),
+            "legs":         [
+                {
+                    "from":      l["origin"]["name"],
+                    "to":        l["destination"]["name"],
+                    "departure": (l.get("departure") or l.get("plannedDeparture") or "")[:16].replace("T", " "),
+                    "arrival":   (l.get("arrival")   or l.get("plannedArrival")   or "")[:16].replace("T", " "),
+                    "line":      (l.get("line") or {}).get("name"),
+                    "platform":  l.get("departurePlatform") or l.get("plannedDeparturePlatform"),
+                }
+                for l in train_legs
+            ],
+        })
+
+    return results
+
 # ── DB Vendo (Deutsche Bahn) connection search ─────────────────────────────────
 
 DB_VENDO_API = "http://localhost:3000"
+
+OEBB_API = "https://v6.oebb.transport.rest/api"
+
+_AUSTRIAN_ITALIAN_KEYWORDS = [
+    # Austrian cities
+    "wien", "vienna", "graz", "linz", "salzburg", "innsbruck", "klagenfurt",
+    "villach", "wels", "st. pölten", "bregenz", "eisenstadt", "feldkirch",
+    "bruck", "leoben", "steyr", "dornbirn", "wiener neustadt", "kufstein",
+    "brenner", "brennero", "schwarzach",
+    # Italian cities covered by ÖBB
+    "venezia", "venice", "verona", "milano", "milan", "bologna", "firenze",
+    "florence", "roma", "rome", "napoli", "naples", "torino", "turin",
+    "genova", "genoa", "trieste", "udine", "padova", "padua", "vicenza",
+    "trento", "trient", "bolzano", "bozen", "merano", "meran",
+]
+
+def _is_austrian_or_italian_station(name: str) -> bool:
+    n = name.lower()
+    return any(kw in n for kw in _AUSTRIAN_ITALIAN_KEYWORDS)
 
 _GERMAN_KEYWORDS = [
     "hbf", "bahnhof", "münchen", "berlin", "frankfurt", "hamburg", "köln",
