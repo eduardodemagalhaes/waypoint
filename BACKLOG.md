@@ -160,3 +160,9 @@ Next free: **ERR16**
 - Trenitalia domestic routes: no API coverage, show "Open Trenitalia" fallback button (not yet implemented)
 - SNCF (France): not yet covered by any rail API
 
+
+### 25. Date field calendar picker
+- All date input fields (segment dep/arr, trip start/end) should auto-show a calendar on focus
+- Calendar opens pre-scrolled to today's date for quick selection
+- User taps a day → fills the field, no typing needed
+- Currently fields accept DD.MM.YYYY text input — picker should complement, not replace

@@ -33,7 +33,7 @@ SYSTEM_ONESHOT = """Extract travel data from natural language. Return ONLY JSON:
 "departs_at":"YYYY-MM-DDTHH:MM:00",
 "departs_tz":"IANA tz e.g. Europe/Zurich","arrives_at":"YYYY-MM-DDTHH:MM:00 or null",
 "arrives_tz":"IANA tz or null","confirmation_ref":"ref or null",
-"confirmed":true,"meta":{"notes":"extra details or empty string"}}
+"confirmed":false,"meta":{"notes":"extra details or empty string"}}  // set confirmed=true only if a real booking/confirmation_ref is present
 Use year 2026 if no year is given. Infer timezone from city/airport."""
 
 # ── dialog system prompt ─────────────────────────────────────────────────────

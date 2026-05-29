@@ -12,6 +12,36 @@ log = logging.getLogger("waypoint.segments")
 
 _last_enrich_time = 0.0
 
+def _sync_trip_dates(trip, db):
+    """
+    Expand trip start_date/end_date to cover all its segments.
+    Called after any segment create/update so the trip dates stay in sync.
+    """
+    from sqlalchemy import text as _text
+    rows = db.execute(_text(
+        "SELECT departs_at, arrives_at FROM segments WHERE trip_id=:tid AND departs_at IS NOT NULL"
+    ), {"tid": trip.id}).fetchall()
+    if not rows:
+        return
+    dates = []
+    for departs_at, arrives_at in rows:
+        if departs_at:
+            dates.append(departs_at[:10])
+        if arrives_at:
+            dates.append(arrives_at[:10])
+    if not dates:
+        return
+    new_start = min(dates)
+    new_end   = max(dates)
+    changed = False
+    if not trip.start_date or new_start < trip.start_date:
+        trip.start_date = new_start; changed = True
+    if not trip.end_date or new_end > trip.end_date:
+        trip.end_date = new_end; changed = True
+    if changed:
+        db.commit()
+
+
 async def _bg_enrich(segment_id: str):
     """Run enrichment in background after segment create/update."""
     global _last_enrich_time
@@ -114,6 +144,7 @@ def create_segment(body: SegmentCreate, bg: BackgroundTasks, db: Session = Depen
         raise HTTPException(403, "Not your trip")
     seg = Segment(**body.model_dump())
     db.add(seg); db.commit(); db.refresh(seg)
+    _sync_trip_dates(trip, db)
     schedule_enrich(bg, seg.id)
     return seg
 
@@ -127,6 +158,9 @@ def update_segment(segment_id: str, body: SegmentUpdate, bg: BackgroundTasks, db
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(seg, k, v)
     db.commit(); db.refresh(seg)
+    if seg.trip_id:
+        trip = db.query(Trip).filter(Trip.id == seg.trip_id).first()
+        if trip: _sync_trip_dates(trip, db)
     schedule_enrich(bg, seg.id)
     return seg
 

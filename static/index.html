@@ -272,8 +272,20 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   border-radius:6px;font-size:12px;color:var(--accent);line-height:1.5;display:flex;gap:8px}
 .av-note-icon{flex-shrink:0;margin-top:1px}
 .timetable-note{margin:0 12px 6px;padding:8px 11px;border-radius:6px;font-size:0.82rem;display:flex;align-items:flex-start;gap:8px;}
+.train-options{display:flex;flex-direction:column;gap:6px;margin:8px 0 4px}
+.train-option-card{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 13px;border:1px solid var(--paper3);border-radius:10px;
+  background:var(--paper2);cursor:pointer;transition:border-color .15s,background .15s;gap:8px}
+.train-option-card:hover{border-color:var(--accent);background:var(--paper)}
+.train-option-card:active{background:var(--paper3)}
+.train-option-times{font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+.train-option-meta{font-size:11px;color:var(--ink3);text-align:right;line-height:1.4}
+.train-option-carrier{font-size:12px;color:var(--ink2);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
 .tt-ok{background:#e6f4ea;color:#1a6e31;border:1px solid #a8d5b0;}
 .tt-warn{background:#fff3e0;color:#8a4a00;border:1px solid #f5c97a;}
+[data-theme="dark"] .tt-warn,
+:root:not([data-theme="light"]):not([data-theme="dark"]) .tt-warn{background:#3d2e1a;color:#f5c97a;border-color:#6b4e1a;}
 .summary-footer{display:flex;gap:8px;padding:8px 12px;border-top:1px solid var(--paper3)}
 
 /* ── TIMELINE ── */
@@ -470,6 +482,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .source-email-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:10px;white-space:nowrap}
 .source-email-badge.confirmed{background:#e8f5e9;color:#2e7d32}
 .source-email-badge.pending{background:#fff8e1;color:#f57f17}
+[data-theme="dark"] .source-email-badge.pending,:root:not([data-theme="light"]):not([data-theme="dark"]) .source-email-badge.pending{background:#3d2e10;color:#f5a53a}
 .source-email-btn{font-size:11px;padding:4px 10px;border-radius:5px;border:1px solid var(--paper3);background:var(--paper2);color:var(--ink2);cursor:pointer;white-space:nowrap;transition:background .15s}
 .source-email-btn:hover{background:var(--paper3)}
 .source-email-btn.remove{border-color:#e0b0a0;color:#c0522a}
@@ -550,7 +563,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
 .form-input{width:100%;padding:6px 9px;border:1px solid var(--paper3);border-radius:6px;
   font-family:var(--sans);font-size:13px;background:var(--paper);color:var(--ink);
   outline:none;transition:border-color .15s}
-.form-input:focus{border-color:var(--ink4);background:#fff}
+.form-input:focus{border-color:var(--ink4);background:var(--paper)}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .type-picker{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
 .type-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 3px;
@@ -851,7 +864,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
     </div>
     <div class="form-row">
       <label class="form-label" id="lblTo">To</label>
-      <input class="form-input" id="fTo" placeholder="HRG or Hurghada">
+      <input class="form-input" id="fTo" placeholder="e.g. HRG or Hurghada">
     </div>
   </div>
   <div class="form-row" id="carrierRow">
@@ -871,7 +884,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   <div class="form-grid">
     <div class="form-row">
       <label class="form-label" id="lblDepDate">Departure date</label>
-      <input class="form-input" id="fDepDate" placeholder="09.05.2026" maxlength="10">
+      <input class="form-input" id="fDepDate" placeholder="DD.MM.YYYY" maxlength="10">
     </div>
     <div class="form-row">
       <label class="form-label" id="lblDepTime">Departure time</label>
@@ -881,7 +894,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   <div class="form-grid" id="arrRow">
     <div class="form-row">
       <label class="form-label" id="lblArrDate">Arrival date</label>
-      <input class="form-input" id="fArrDate" placeholder="11.05.2026" maxlength="10">
+      <input class="form-input" id="fArrDate" placeholder="DD.MM.YYYY" maxlength="10">
     </div>
     <div class="form-row">
       <label class="form-label" id="lblArrTime">Arrival time</label>
@@ -910,7 +923,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
     <div class="form-grid">
       <div class="form-row">
         <label class="form-label">Phone</label>
-        <input class="form-input" id="fHotelPhone" placeholder="+55 11 3706 6600">
+        <input class="form-input" id="fHotelPhone" placeholder="Phone number">
       </div>
       <div class="form-row">
         <label class="form-label">Room type</label>
@@ -922,7 +935,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
     <div class="form-grid">
       <div class="form-row">
         <label class="form-label">Phone</label>
-        <input class="form-input" id="fTaxiPhone" placeholder="+55 11 99882 9009">
+        <input class="form-input" id="fTaxiPhone" placeholder="Phone number">
       </div>
       <div class="form-row">
         <label class="form-label">Driver name</label>
@@ -976,7 +989,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   <div class="modal-title">New trip</div>
   <div class="form-row">
     <label class="form-label">Trip name</label>
-    <input class="form-input" id="tName" placeholder="Egypt, October">
+    <input class="form-input" id="tName" placeholder="Trip name">
   </div>
   <div class="form-grid">
     <div class="form-row">
@@ -1076,20 +1089,20 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   <div class="modal-title">Edit trip</div>
   <div class="form-row">
     <label class="form-label">Trip name</label>
-    <input class="form-input" id="etName" placeholder="Egypt, October">
+    <input class="form-input" id="etName" placeholder="Trip name">
   </div>
   <div class="form-row">
     <label class="form-label">Location / destination</label>
-    <input class="form-input" id="etLocation" placeholder="Hurghada, Egypt">
+    <input class="form-input" id="etLocation" placeholder="Destination">
   </div>
   <div class="form-grid">
     <div class="form-row">
       <label class="form-label">Start date</label>
-      <input class="form-input" id="etStart" placeholder="09.05.2026" maxlength="10">
+      <input class="form-input" id="etStart" placeholder="DD.MM.YYYY" maxlength="10">
     </div>
     <div class="form-row">
       <label class="form-label">End date</label>
-      <input class="form-input" id="etEnd" placeholder="11.05.2026" maxlength="10">
+      <input class="form-input" id="etEnd" placeholder="DD.MM.YYYY" maxlength="10">
     </div>
   </div>
   <div class="form-row">
@@ -1098,7 +1111,7 @@ body{font-family:var(--sans);background:var(--paper);color:var(--ink);min-height
   </div>
   <div class="form-row">
     <label class="form-label">Notes / description</label>
-    <textarea class="form-input" id="etDesc" placeholder="Family trip, hotel booked, flights confirmed…" rows="3" style="resize:vertical"></textarea>
+    <textarea class="form-input" id="etDesc" placeholder="Notes…" rows="3" style="resize:vertical"></textarea>
   </div>
   <div class="modal-footer" style="justify-content:space-between">
     <button class="btn btn-danger btn-sm" onclick="deleteTrip()">Delete trip</button>
@@ -1601,6 +1614,167 @@ async function submitFeedback() {
   } catch(e) {
     err.textContent = e.message || 'Could not send feedback';
     btn.disabled = false; btn.textContent = 'Send';
+  }
+}
+
+// ── Booking URL helper ────────────────────────────────────────────────────────
+function bookingUrl(seg) {
+  const type   = (seg.type || '').toLowerCase();
+  const origin = (seg.origin || '').trim();
+  const dest   = (seg.destination || '').trim();
+  const date   = (seg.departs_at || '').slice(0, 10); // YYYY-MM-DD
+  const carrier = (seg.carrier || '').toUpperCase();
+
+  if (type === 'train') {
+    // ÖBB — Austrian or Italian route
+    const oebb = ['wien','vienna','graz','linz','salzburg','innsbruck','klagenfurt',
+                  'villach','bregenz','feldkirch','kufstein','brenner','brennero',
+                  'venezia','venice','verona','milano','milan','bologna','firenze',
+                  'florence','roma','rome','napoli','naples','torino','turin',
+                  'bolzano','bozen','trento','trieste','udine','padova'];
+    const isOebb = oebb.some(k => origin.toLowerCase().includes(k) || dest.toLowerCase().includes(k));
+    if (isOebb) {
+      const d = date.replace(/-/g, '');
+      return `https://tickets.oebb.at/en/ticket?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(dest)}&outwardDate=${d}`;
+    }
+    // SBB — Swiss route
+    const sbb = ['zurich','zürich','zrh','geneva','genève','gva','basel','bsl','bern','lausanne','lugano','luzern','lucerne','interlaken','brig','sion','chur','winterthur','st. gallen','thun'];
+    const isSbb = sbb.some(k => origin.toLowerCase().includes(k) || dest.toLowerCase().includes(k));
+    if (isSbb) {
+      return `https://www.sbb.ch/en/buying/pages/fahrplan/fahrplan.xhtml?von=${encodeURIComponent(origin)}&nach=${encodeURIComponent(dest)}&datum=${date}&an_ab=ab`;
+    }
+    // DB — German route
+    const db = ['berlin','münchen','munich','frankfurt','hamburg','köln','cologne','stuttgart','düsseldorf','mannheim','frankenthal','heidelberg','hannover'];
+    const isDb = db.some(k => origin.toLowerCase().includes(k) || dest.toLowerCase().includes(k));
+    if (isDb) {
+      return `https://www.bahn.de/buchung/fahrplan/suche#sts=true&so=${encodeURIComponent(origin)}&zo=${encodeURIComponent(dest)}&kl=2&r=13:16:KLASSENLOS:1&soid=&zoid=&amo=&amo=${date ? date.slice(8,10) : ''}&ami=${date ? date.slice(5,7) : ''}&amy=${date ? date.slice(0,4) : ''}&hd=${date}&hza=D&ar=false&s=true&d=false&vm=00,01,02,03,04,05,06,07,08,09&fm=false&pw=false&p=false&sp=false`;
+    }
+    // Trenitalia — Italian domestic
+    const ita = ['milano centrale','roma termini','napoli centrale','torino porta nuova','venezia santa lucia','firenze santa maria','bologna centrale'];
+    const isIta = ita.some(k => origin.toLowerCase().includes(k) || dest.toLowerCase().includes(k));
+    if (isIta) {
+      return `https://www.trenitalia.com/en/search-journey.html?from=${encodeURIComponent(origin)}&to=${encodeURIComponent(dest)}&date=${date}`;
+    }
+    // Generic Omio fallback for trains
+    return `https://www.omio.com/trains/${encodeURIComponent(origin.toLowerCase())}/${encodeURIComponent(dest.toLowerCase())}/${date}`;
+  }
+
+  if (type === 'flight') {
+    // Try to infer carrier website from IATA code
+    const iata = (seg.flight_iata || carrier || '').slice(0,2).toUpperCase();
+    const carriers = {
+      'LX': 'https://www.swiss.com',
+      'LH': 'https://www.lufthansa.com',
+      'OS': 'https://www.austrian.com',
+      'BA': 'https://www.britishairways.com',
+      'AF': 'https://www.airfrance.com',
+      'KL': 'https://www.klm.com',
+      'U2': 'https://www.easyjet.com',
+      'FR': 'https://www.ryanair.com',
+      'EK': 'https://www.emirates.com',
+      'TK': 'https://www.turkishairlines.com',
+    };
+    if (carriers[iata]) return carriers[iata];
+    // Google Flights fallback
+    const d = date.replace(/-/g, '');
+    return `https://www.google.com/travel/flights/search?tfs=CBwQAhopagwIAxIIL2EvJHtvcmlnaW59EgwIAxIIL2EvJHtkZXN0fXIHCAESA2RlZg`;
+  }
+
+  return null;
+}
+
+function renderTrainOptions(connections, baseDraft) {
+  // Render tappable train option cards in the dialog thread
+  const wrap = document.createElement('div');
+  wrap.className = 'train-options';
+
+  connections.forEach(conn => {
+    const dep = (conn.departs || '').slice(-5);
+    const arr = (conn.arrives || '').slice(-5);
+    const carrier = conn.carrier || 'Train';
+    const xfers = conn.transfers || 0;
+    const xferStr = xfers === 0 ? 'Direct' : `${xfers} change${xfers !== 1 ? 's' : ''}`;
+    const plat = conn.platform_dep ? ` · Platform ${conn.platform_dep}` : '';
+    // Truncate carrier if too long (bus cascades etc.)
+    const carrierShort = carrier.length > 30 ? carrier.split('/')[0].trim() + ' …' : carrier;
+
+    const card = document.createElement('div');
+    card.className = 'train-option-card';
+    card.innerHTML = `
+      <div>
+        <div class="train-option-times">${dep} → ${arr}</div>
+        <div class="train-option-carrier">${carrierShort}</div>
+      </div>
+      <div class="train-option-meta">${xferStr}${plat}</div>`;
+
+    card.onclick = () => {
+      // Remove options from thread
+      wrap.remove();
+      // Show user selection
+      appendThread('user', `${dep} departure`);
+      // Apply chosen connection to draft and submit as if user confirmed the time
+      const chosen = {
+        ...(baseDraft || {}),
+        departs_at: conn.departs ? conn.departs.replace(' ', 'T') + ':00' : baseDraft?.departs_at,
+        arrives_at: conn.arrives ? conn.arrives.replace(' ', 'T') + ':00' : baseDraft?.arrives_at,
+        carrier: conn.carrier || baseDraft?.carrier,
+      };
+      // Inject synthetic message to confirm this choice
+      dlg.history = dlg.history || [];
+      dlg.history.push({role:'user', content: `${dep} departure`});
+      dlg.draft = chosen;
+      // Re-submit with the corrected draft locked in — use confirm path
+      _confirmTrainOption(chosen);
+    };
+
+    wrap.appendChild(card);
+  });
+
+  // Append to dialog thread
+  const thread = document.getElementById('dialogThread');
+  if (thread) {
+    thread.appendChild(wrap);
+    thread.scrollTop = thread.scrollHeight;
+  }
+}
+
+async function _confirmTrainOption(draft) {
+  // Draft is now fully resolved — go straight to summary
+  setNlLoading(true);
+  try {
+    const r = await fetch(`${API}/api/parse/dialog`, {
+      method:'POST', credentials:'include',
+      headers:{...H,'Content-Type':'application/json'},
+      body: JSON.stringify({
+        trip_id: currentTrip.id,
+        message: `confirmed: ${draft.departs_at?.slice(11,16)} departure`,
+        history: dlg.history || [],
+        draft,
+        bypass_verification: true,
+      })
+    });
+    const res = await r.json();
+    if (!r.ok) throw new Error(res.detail || 'Failed');
+    dlg.history = res.history || dlg.history;
+    dlg.draft   = res.draft   || draft;
+    dlg.ttNote  = res.timetable_note || null;
+    if (res.status === 'ready') {
+      activateDialog();
+      appendThread('bot', 'Got everything I need. Does this look right?');
+      renderSummary(res.draft, res.aviationstack_note, res.timetable_note);
+    } else if (res.status === 'question') {
+      appendThread('bot', res.question);
+    } else {
+      // Already resolved — render summary directly
+      activateDialog();
+      appendThread('bot', 'Got everything I need. Does this look right?');
+      renderSummary(draft, null, null);
+    }
+  } catch(e) {
+    appendThread('bot', 'Something went wrong [ERR16] — please try again.');
+    console.error('[ERR16]', e);
+  } finally {
+    setNlLoading(false);
   }
 }
 
@@ -2543,8 +2717,9 @@ function renderTimeline() {
       const arrTime    = arrT(s.departs_at, s.arrives_at);
       const overnight  = overnightDays(s.departs_at, s.arrives_at);
       const duration   = flightDuration(s.departs_at, s.arrives_at, s.departs_tz, s.arrives_tz);
-      const bClass     = s.confirmed ? 'badge-ok' : BADGE[s.parse_status] || 'badge-pending';
-      const bLbl       = s.confirmed ? 'Confirmed' : BADGE_LBL[s.parse_status] || 'Pending';
+      const isConfirmed = s.confirmed || !!s.confirmation_ref;
+      const bClass     = isConfirmed ? 'badge-ok' : BADGE[s.parse_status] || 'badge-pending';
+      const bLbl       = isConfirmed ? 'Confirmed' : BADGE_LBL[s.parse_status] || 'Pending';
       const nights     = isHotel && s.meta && s.meta.nights ? ` · ${s.meta.nights} nights` : '';
 
       // Route label
@@ -2613,6 +2788,7 @@ function renderTimeline() {
             <div style="grid-column:1/-1" class="seg-actions">
               <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditSeg('${s.id}')">Edit</button>
               <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openSegDetails('${s.id}')">Details</button>
+              ${!isConfirmed && bookingUrl(s) && ['flight','train'].includes(s.type) ? `<a class="btn btn-accent btn-sm" href="${bookingUrl(s)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="text-decoration:none">🎫 Book</a>` : ''}
               <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteSeg('${s.id}')">Delete</button>
             </div>
           </div>
@@ -2777,8 +2953,13 @@ async function sendDialogTurn(text, {showInThread=true, bypassGuardrails=false}=
       appendThread('bot', res.question);
     } else {
       activateDialog();
-      appendThread('bot', 'Got everything I need. Does this look right?');
-      renderSummary(res.draft, res.aviationstack_note, res.timetable_note);
+      if (res.status === 'train_options' && res.train_options) {
+        appendThread('bot', res.question || 'Which service works for you?');
+        renderTrainOptions(res.train_options, res.draft);
+      } else {
+        appendThread('bot', 'Got everything I need. Does this look right?');
+        renderSummary(res.draft, res.aviationstack_note, res.timetable_note);
+      }
     }
   } catch(e) {
     appendThread('bot', 'Something went wrong [ERR02] — please try again.');
@@ -2831,7 +3012,7 @@ function cancelDialog() {
   document.getElementById('nlBtn').textContent = 'Add';
   document.getElementById('nlInput').placeholder = 'e.g. flight ZRH to HRG Oct 10 07:15 Swiss LX392…';
   document.getElementById('nlInput').value = '';
-  if (window.innerWidth > 700) document.getElementById('nlInput').focus();
+  // no auto-focus
 }
 
 function appendGuardrailInline(message, options, meta) {
@@ -3011,7 +3192,7 @@ function editSummary() {
   // Clear summary, let user keep chatting
   document.getElementById('summaryArea').innerHTML = '';
   appendThread('bot', 'What would you like to change?');
-  document.getElementById('nlInput').focus();
+  // no auto-focus
 }
 
 async function confirmSave() {
@@ -3024,7 +3205,7 @@ async function confirmSave() {
       if (dlg.avNote) draft.aviationstack_note = dlg.avNote;
       if (dlg.ttNote)  draft.timetable_note       = dlg.ttNote;
       const r = await fetch(`${API}/api/parse/dialog/confirm`, {
-        method: 'POST', headers: H,
+        method: 'POST', credentials: 'include', headers: H,
         body: JSON.stringify({trip_id: targetTripId || currentTrip.id, draft}),
       });
       if (!r.ok) throw new Error(await r.text());
@@ -3094,7 +3275,7 @@ function openAddSeg() {
   document.getElementById('fDepDate').value = isoToDisplay(currentTrip.start_date || '');
   document.getElementById('fDepTz').value   = 'Europe/Zurich';
   document.getElementById('segOverlay').classList.add('open');
-  document.getElementById('fFrom').focus();
+  // no auto-focus on mobile
 }
 
 function openEditSeg(id) {
@@ -3157,6 +3338,13 @@ function clearSegForm() {
 function closeSegModal() { document.getElementById('segOverlay').classList.remove('open'); }
 
 async function saveSeg() {
+  // Warn if marking confirmed without a booking reference
+  const isConfirmedChecked = document.getElementById('fConfirmed').checked;
+  const ref = (document.getElementById('fRef')?.value || '').trim();
+  if (isConfirmedChecked && !ref) {
+    const ok = confirm('No booking reference found.\nAre you sure you want to mark this as confirmed?');
+    if (!ok) return;
+  }
   const depDate = parseDate(document.getElementById('fDepDate').value);
   const depTime = parseTime(document.getElementById('fDepTime').value) || '00:00';
   if (!depDate) { toast('Departure date is required'); return; }
@@ -3233,7 +3421,7 @@ async function deleteSeg(id) {
 // ── TRIP MODAL ────────────────────────────────────────────────
 function openNewTrip() {
   document.getElementById('tripOverlay').classList.add('open');
-  setTimeout(() => document.getElementById('tName').focus(), 50);
+  // no auto-focus on mobile
 }
 function closeTripModal() { document.getElementById('tripOverlay').classList.remove('open'); }
 
@@ -3410,7 +3598,7 @@ function openEditTrip() {
   document.getElementById('etCurrency').value = currentTrip.home_currency || 'CHF';
   document.getElementById('etDesc').value     = currentTrip.description || '';
   document.getElementById('editTripOverlay').classList.add('open');
-  setTimeout(() => document.getElementById('etName').focus(), 50);
+  // no auto-focus on mobile
 }
 
 function closeEditTripModal() {
@@ -3552,7 +3740,7 @@ function toggleEditAssist() {
       ? `Hi! I can update this flight (${from}→${to}${carrier ? ', '+carrier : ''}). What would you like to change?`
       : `Hi! I can update this ${type} segment. What would you like to change?`;
     _editAssistAddMsg('bot', greeting);
-    document.getElementById('editAssistInput').focus();
+    // no auto-focus on mobile
   }
 }
 
@@ -3655,7 +3843,7 @@ function segDateWarning(seg) {
     const match = trips.find(t => t.id !== currentTrip.id && t.start_date && t.end_date
                               && sd >= t.start_date && sd <= t.end_date);
     const hint = match ? ` Belongs to <b>${match.name}</b>?` : '';
-    return `<div style="grid-column:1/-1;padding:5px 9px;background:#fff8e6;border-radius:6px;
+    return `<div style="grid-column:1/-1;padding:5px 9px;background:var(--paper2);border-radius:6px;
       font-size:11px;color:#8a6200;border:1px solid #f0d080;margin-bottom:4px">
       ⚠ Date ${fmtShort(sd)} is outside this trip's range (${fmtShort(ts)}–${fmtShort(te)}).${hint}
     </div>`;
@@ -3862,7 +4050,7 @@ function openPlanner() {
       </div>
     </div>`;
   initPlanner();
-  setTimeout(() => document.getElementById('plannerInput')?.focus(), 50);
+  // no auto-focus on mobile
 }
 
 function _plannerMsg(role, text) {

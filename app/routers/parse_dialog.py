@@ -38,6 +38,7 @@ class DialogRequest(BaseModel):
     draft: Optional[dict[str, Any]] = None
     all_trips: list[dict] = []
     bypass_guardrails: bool = False
+    bypass_verification: bool = False
 
 class DialogResponse(BaseModel):
     status: str
@@ -49,6 +50,7 @@ class DialogResponse(BaseModel):
     return_aviationstack_note: Optional[str] = None
     timetable_note: Optional[str] = None
     guardrail_hit: Optional[dict] = None
+    train_options: Optional[list] = None   # structured connections for UI picker
     history: list[DialogMessage] = []
 
 class DialogConfirmRequest(BaseModel):
@@ -83,6 +85,10 @@ def parse_text(body: ParseRequest, bg: BackgroundTasks, db: Session = Depends(ge
     if av_note:
         seg.meta["aviationstack_note"] = av_note
     db.add(seg); db.commit(); db.refresh(seg)
+    # Sync trip dates to cover new segment
+    from app.routers.segments import _sync_trip_dates
+    trip_obj = db.query(Trip).filter(Trip.id == body.trip_id).first()
+    if trip_obj: _sync_trip_dates(trip_obj, db)
     schedule_enrich(bg, seg.id)
     return seg
 
@@ -167,13 +173,27 @@ async def parse_dialog(body: DialogRequest, db: Session = Depends(get_db), user:
     if status=='ready' and return_draft and return_draft.get('flight_iata'):
         return_draft,_,return_av_note=enrich_with_aviationstack(return_draft)
     timetable_note=None
-    if status=='ready' and draft.get('type')=='train':
-        draft,timetable_note=await verify_train_time(draft)
+    if status=='ready' and draft.get('type')=='train' and not body.bypass_verification:
+        draft, timetable_note, tt_connections = await verify_train_time(draft)
+        if tt_connections:
+            # Time didn't match — return structured options for the UI picker
+            origin = draft.get("origin","")
+            destination = draft.get("destination","")
+            requested_time = (draft.get("departs_at","") or "")[:16][-5:]
+            return DialogResponse(
+                status="train_options",
+                question=f"No train at {requested_time} from {origin} to {destination}. Pick a service:",
+                draft=draft,
+                return_draft=return_draft,
+                train_options=tt_connections,
+                missing=[],
+                history=new_history,
+            )
     return DialogResponse(status=status,question=gpt.get('question'),draft=draft,return_draft=return_draft,missing=gpt.get('missing',[]),aviationstack_note=av_note,return_aviationstack_note=return_av_note,timetable_note=timetable_note,history=new_history)
 
 
 @router.post("/dialog/confirm", response_model=SegmentOut, status_code=201)
-def dialog_confirm(body: DialogConfirmRequest, bg: BackgroundTasks, db: Session = Depends(get_db)):
+def dialog_confirm(body: DialogConfirmRequest, bg: BackgroundTasks, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     """
     User approved the summary card — write the segment to DB.
     """
@@ -225,24 +245,23 @@ if not _dlog.handlers:
     _dlog.setLevel(logging.INFO)
 
 
-async def verify_train_time(draft: dict) -> tuple[dict, str | None]:
+async def verify_train_time(draft: dict) -> tuple[dict, str | None, list | None]:
     """
-    Cross-check a train draft against the real timetable (DB Vendo or SBB).
-    Corrects departs_at/arrives_at if the user-supplied time doesn't match any
-    real service, and returns a human-readable timetable_note.
-    Returns (corrected_draft, note_or_None).
+    Cross-check a train draft against the real timetable.
+    - If time matches within 3 min: silently correct + return confirmation note.
+    - If time is wrong: return (original_draft, None, connections_list) so the
+      caller can ask the user to pick instead of auto-correcting silently.
+    Returns (draft, note_or_None, connections_for_question_or_None).
     """
-    import asyncio
-    from app.routers.enrich import search_connections, _is_german_station
+    from app.routers.enrich import search_connections
 
     origin      = draft.get("origin", "")
     destination = draft.get("destination", "")
-    departs_at  = draft.get("departs_at", "")  # "YYYY-MM-DDTHH:MM:00"
+    departs_at  = draft.get("departs_at", "")
 
     if not origin or not destination or not departs_at:
-        return draft, None
+        return draft, None, None
 
-    # Format for search_connections: "YYYY-MM-DD HH:MM"
     datetime_str = departs_at[:16].replace("T", " ")
 
     try:
@@ -253,23 +272,20 @@ async def verify_train_time(draft: dict) -> tuple[dict, str | None]:
             limit=4,
         )
     except Exception:
-        return draft, None
+        return draft, None, None
 
     connections = result.get("connections", [])
     if not connections:
-        # No results at all — can't verify, don't block
-        return draft, None
+        return draft, None, None
 
     source = result.get("source", "timetable")
 
-    # Parse user-supplied departure time
     try:
         from datetime import datetime as _dt
         user_dep = _dt.strptime(datetime_str, "%Y-%m-%d %H:%M")
     except ValueError:
-        return draft, None
+        return draft, None, None
 
-    # Find the closest real departure
     best = None
     best_diff = None
     for conn in connections:
@@ -283,42 +299,30 @@ async def verify_train_time(draft: dict) -> tuple[dict, str | None]:
             continue
 
     if not best:
-        return draft, None
+        return draft, None, None
 
-    TOLERANCE_SECONDS = 3 * 60  # 3 minutes — same train, rounding
+    TOLERANCE_SECONDS = 3 * 60
 
     if best_diff <= TOLERANCE_SECONDS:
-        # Times match — silently correct to exact timetable time and add carrier
+        # Match — silently correct and confirm
         corrected = dict(draft)
         corrected["departs_at"] = best["departs"].replace(" ", "T") + ":00"
         if best.get("arrives"):
             corrected["arrives_at"] = best["arrives"].replace(" ", "T") + ":00"
         if not corrected.get("carrier") and best.get("carrier"):
             corrected["carrier"] = best["carrier"]
+        xfers = best.get("transfers", 0)
+        xfer_str = f", {xfers} change{'s' if xfers != 1 else ''}" if xfers else ", direct"
         note = (
-            f"✓ Verified against {source}: {best['carrier'] or ''} "
+            f"✓ Verified against {source}: {best.get('carrier') or ''} "
             f"departs {best['departs'][11:16]}, arrives {best['arrives'][11:16]}"
             + (f", platform {best['platform_dep']}" if best.get("platform_dep") else "")
-            + "."
+            + xfer_str + "."
         )
-        return corrected, note
+        return corrected, note, None
 
-    # Times don't match — the user gave a fictional time
-    # Correct to the nearest real train
-    corrected = dict(draft)
-    corrected["departs_at"] = best["departs"].replace(" ", "T") + ":00"
-    if best.get("arrives"):
-        corrected["arrives_at"] = best["arrives"].replace(" ", "T") + ":00"
-    if best.get("carrier"):
-        corrected["carrier"] = best["carrier"]
-
-    note = (
-        f"⚠ No train at {datetime_str[11:16]} — corrected to nearest real service: "
-        f"{best['carrier'] or 'train'} at {best['departs'][11:16]}"
-        + (f" (platform {best['platform_dep']})" if best.get("platform_dep") else "")
-        + f". Source: {source}."
-    )
-    return corrected, note
+    # No match — return connections so caller can ask user to pick
+    return draft, None, connections[:4]
 
 
 def _log_dialog(trip_id: str, history: list, draft: dict):
