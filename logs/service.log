@@ -3957,3 +3957,33 @@ INFO:     Started server process [221509]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [221509]
+INFO:     Started server process [221621]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:46404 - "GET / HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [221621]
+INFO:     Started server process [221982]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:40974 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43144 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43158 - "GET /css/app.a11de535.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43172 - "GET /js/app.2bc9ca48.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43186 - "GET /js/profile.23cde4ba.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43190 - "GET /js/inbox.a240dc5b.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43200 - "GET /js/ui.5649e411.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43212 - "GET /js/pdf.60ee3425.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43226 - "GET /js/timeline.157040a9.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43232 - "GET /js/dialog.b2ad9c15.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43236 - "GET /js/segments.fefefa49.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43250 - "GET /js/trips.0e95f011.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:43256 - "GET /js/connections.de34234e.js HTTP/1.1" 200 OK
