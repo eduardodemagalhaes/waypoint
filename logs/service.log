@@ -3903,3 +3903,20 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 INFO:     127.0.0.1:54182 - "GET / HTTP/1.1" 200 OK
 INFO:     127.0.0.1:54192 - "GET /css/app.css HTTP/1.1" 200 OK
 INFO:     127.0.0.1:54198 - "GET /js/app.js HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [210493]
+INFO:     Started server process [210608]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [210608]
+INFO:     Started server process [220752]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:46628 - "GET / HTTP/1.1" 200 OK
