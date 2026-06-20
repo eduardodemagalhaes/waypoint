@@ -10,3 +10,8 @@ logs/
 *.bak
 *.bak2
 .DS_Store
+venv.bak-*
+venv.failed-*
+*.bak.*
+*.db.bak*
+logs/service.log
